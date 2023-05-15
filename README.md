@@ -1,7 +1,8 @@
 # FIJI_Scripts
 Useful FIJI Scripts for imageJ macro languaje
 
-## 
+## Save all opened images.ijm
+Exactly that into a selected folder
 
 ## DrawFeret.ijm
 Draws the Feret of a ROI
