@@ -10,7 +10,7 @@ Draws the Feret of a ROI
 ## DrawEllipse.ijm
 Draws the best fitting ellipse to all ROIs
 
-## Batch processing template with functions.ijm
+## Batch processing template using defined functions.ijm
 Process folder and subfolders with images using functions
 
 ## Fixed Length Line Tool.ijm
