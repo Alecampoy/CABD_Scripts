@@ -24,7 +24,7 @@ if(roiManager("count") !=0) {roiManager("delete");}
 // 0.1 Set measurements
 run("Options...", "iterations=1 count=1 black"); // Set black binary bckg
 run("Set Measurements...", "area center perimeter fit shape feret's area_fraction stack redirect=None decimal=2");
-print("Frame;area;XM;XM;Perim;Circ;Feret;FeretAngle;MinFeret;AR;Round;Solidity;NBranches;AvgBranchLen;MaxBranchLen;BranchLen;EuclideanDist;Time"); // header of the result file in the Log window
+print("Frame;area;XM;XM;Perim;Circ;Feret;FeretAngle;MinFeret;AR;Round;Solidity;NBranches;AvgBranchLen;MaxBranchLen;BranchLen;EuclideanDist;Time"); // header of the result file in the Log window
 
 // 1 Select the Folder with the files
 dir = getDirectory("Selecciona el directorio con las imagenes en tiff");
