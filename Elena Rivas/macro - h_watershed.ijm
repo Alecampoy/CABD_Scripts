@@ -1,69 +1,101 @@
-//Borramos todo lo que pueda estar abierto
+///////////////////////////////////////////////////////////////////////////////////////////////
+/* Author: Ale Campoy
+ * Microscopy Unit (CABD)
+ * Date: 06/07/23
+ * User: Elena Rivas
+ * 	
+ * Description: Segments the bacteria from BF images and measure its morphological parameters
+ * 
+ * Input: Folder with the set of bright field images from Elyra-LSM880
+ *
+ * Method: Interactive Watershed Segmentation with seeds
+ * 
+ * Output: Segmented images in folder and result file
+ * 
+ *///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// 0.0 Clean previous data in FIJI
 run("Close All");
 run("Clear Results");
-counts = roiManager("count");
-if(counts !=0) {roiManager("delete");}
+print("\\Clear");
+if(roiManager("count") !=0) {roiManager("delete");}
 
-//Selecciona el directorio con las imagenes 
-dir = getDirectory("Selecciona el directorio con las imagnes");
-list= getFileList (dir);
-
-//calculamos el numero de imagenes
-images = 0;
-for (i=0; i<list.length; i++) {
-      if (endsWith(list[i], "czi")){
-      	images++;
-      }
-};
-print("Numero de imagenes en carpeta: "+images);
-setBatchMode(true);
-
-
-//Seleccionamos las medidas deseadas
-run("Set Measurements...", "area mean min centroid center perimeter bounding fit shape feret's area_fraction stack redirect=None decimal=2");
-
-//Comienza un loop for para todas las imagenes en la carpeta, se abre para cada imagen verde
-for (i=0; i<list.length; i++){ 
-//condicional para el canal VERDE	
-if (endsWith(list[i], "czi")){ 				
-
-//Open green channel image
-title=list[i];
-run("Bio-Formats Importer", "open=["+dir+title+"] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
-
-
-
-run("Subtract Background...", "rolling=15 light");
-run("Gaussian Blur...", "sigma=2");
-run("Invert");
-run("Enhance Contrast...", "saturated=0.5 normalize");
-run("Unsharp Mask...", "radius=4 mask=0.60");
-
-
-run("H_Watershed", "impin=["+title+"] hmin=7000.0 thresh=53000.0 peakflooding=100.0 outputmask=false allowsplitting=false");
-
-setThreshold(0, 0);
-setOption("BlackBackground", false);
-run("Convert to Mask");
-run("Invert");
-run("Watershed");
-
-run("Analyze Particles...", "size=50-240 show=Masks display exclude add");
-
-roiManager("Save", dir+title+"_RoiSet.zip");
-run("Bio-Formats Importer", "open=["+dir+title+"] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
-run("RGB Color");
+// 0.1 Set measurements
+run("Options...", "iterations=1 count=1 black"); // Set black binary bckg
+run("Set Measurements...", "area centroid perimeter fit shape feret's redirect=None decimal=2");
 setForegroundColor(255, 255, 0);
-roiManager("show all");
-roiManager("draw");
 
-imatiff = dir + "imagenes tiff\\";
-File.makeDirectory(imatiff);
-saveAs("Tiff", dir+title+".tif");
-roiManager("delete");
-run("Close All");
 
+// 1 Select the Folder with the files
+dir = getDirectory("Select the folder with condition folders inside");
+list = getFileList(dir); // list of condition - every condition is a folder
+Results = createFolder(dir, "Results");
+
+setBatchMode(false);
+Start_time = getTime(); // to inform how long does it take to process the folder
+
+for(f = 0; f<list.length; f++){ // Loop for the folder with folders inside. Every folder f is a condition
+	if (File.isDirectory(dir+list[f])){
+		dir_condicion = dir+list[f];
+		condition = list[f];
+		list_images = getFileList(dir_condicion);
+		for (i=0; i<list.length; i++){ // Loop for files inside every folder
+			if (endsWith(list_images[i], "czi")){
+				title=list_images[i];
+				condition_title= substring(condition, 0, lengthOf(condition)-1)+"_"+title;
+// 2 Open and Process of every image
+				run("Bio-Formats Importer", "open=["+dir_condicion+title+"] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
+				original=getImageID();
+				run("Duplicate...", "title=process");
+				run("Subtract Background...", "rolling=15 light");
+				run("Gaussian Blur...", "sigma=2");
+				run("Invert");
+				run("Enhance Contrast...", "saturated=0.5 normalize");
+				run("Unsharp Mask...", "radius=4 mask=0.60");
+				run("H_Watershed", "impin=[process] hmin=6200.0 thresh=51000.0 peakflooding=100.0 outputmask=false allowsplitting=false");
+				setThreshold(0, 0);
+				setOption("BlackBackground", true);
+				run("Convert to Mask");
+				run("Invert");
+				run("Watershed");
+				run("Analyze Particles...", "size=3-19 show=Nothing display exclude add"); // the particle size has been adjusted to pixel with conversion 1pixel = 0.1um
+				// roiManager("Save", dir+title+"_RoiSet.zip");
+
+// 3 Draws and save the results
+				selectImage(original);
+				run("RGB Color");
+				roiManager("show all");
+				roiManager("draw");
+				saveAs("Tiff", Results+condition_title+"_segm.tif");
+				// csv results
+				selectWindow("Results");
+				saveAs("Results", Results+condition_title+"_Results.csv");
+
+// clean and loop for images goes on
+				roiManager("delete");
+				run("Clear Results");
+				run("Close All");
+				
+			}
+		}
+	}
 }
+
+// Macro is finished. Print time						
+print("\\Clear");
+print("Terminado");
+Finish_time = getTime();
+Time_used = Finish_time - Start_time;
+print("It took =", Time_used/1000, "second to finish the proccess");
+
+
+//Functions
+function createFolder(dir, name) {
+	mydir = dir+name+File.separator;
+	File.makeDirectory(mydir);
+	if(!File.exists(mydir)){
+		print("Unable to create the folder");
+	}
+	return mydir;
 }
-selectWindow("Results");
-saveAs("Results", dir+"Results.csv");
