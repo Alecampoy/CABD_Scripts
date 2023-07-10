@@ -1,1 +1,1 @@
-This folder contains non curated scripts for a particular task for a Image analysis unit user
+This folder contains non curated scripts for a particular task for a ALMIA Image analysis unit user
