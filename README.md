@@ -18,3 +18,6 @@ Process folder of stacks, measuring on every frame and creating a dataframe in t
 
 ## Fixed Length Line Tool.ijm
 This ImageJ tool macro allows for drawing a line with a given fixed length or maximum length.
+
+## pruning_skeleton Threshold
+Imagej Macro that cleans/prunes branches of a skeleton under a length threshold
