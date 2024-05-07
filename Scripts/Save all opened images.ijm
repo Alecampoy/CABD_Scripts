@@ -11,3 +11,4 @@ for (i=0;i<total;i++) {
 			print(title);//}
 }
 run("Close All");
+run("Collect Garbage");
