@@ -54,7 +54,7 @@ for(f = 0; f<list.length; f++){ // Loop for the folder with folders inside. Ever
 				run("Enhance Contrast...", "saturated=0.5 normalize");
 				run("Unsharp Mask...", "radius=4 mask=0.60");
 				run("8-bit");
-				run("H_Watershed", "impin=[process] hmin=24.0 thresh=150.0 peakflooding=100.0 outputmask=false allowsplitting=false"); //  hmin=6250.0 thresh=50500.0 para imagenes de 16 bits
+				run("H_Watershed", "impin=[process] hmin=36.0 thresh=166.0 peakflooding=100.0 outputmask=false allowsplitting=false"); //  hmin=6250.0 thresh=50500.0 para imagenes de 16 bits
 				setThreshold(0, 0);
 				setOption("BlackBackground", true);
 				run("Convert to Mask");
