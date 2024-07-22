@@ -40,7 +40,7 @@ for(f = 0; f<list.length; f++){ // Loop for the folder with folders inside. Ever
 		dir_condicion = dir+list[f];
 		condition = list[f];
 		list_images = getFileList(dir_condicion);
-		for (i=0; i<list.length; i++){ // Loop for files inside every folder
+		for (i=0; i<list_images.length; i++){ // Loop for files inside every folder
 			if (endsWith(list_images[i], "czi")){
 				title=list_images[i];
 				condition_title= substring(condition, 0, lengthOf(condition)-1)+"_"+title;
