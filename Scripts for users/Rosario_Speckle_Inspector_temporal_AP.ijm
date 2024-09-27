@@ -19,7 +19,7 @@ main_image = getImageID();
 
 // Salvamos los 3 ROI iniciales
 roiManager("deselect");
-roiManager("save", dir+title+"_ROIs.zip");
+roiManager("save", dir+title+"_AP_ROIs.zip");
 
 // Convierte la imagen inicial a ByN
 run("Select None");
