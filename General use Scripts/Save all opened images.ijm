@@ -8,7 +8,7 @@ for (i=0;i<total;i++) {
         //c0 = title.contains('C=0'); in case we want just a channel
 		//if(c0 == "true") {
 			saveAs("tiff", dir+title);
-			print("Imagen "+i+" de "+total);
+			print("Imagen "+i+1+" de "+total);
 			print(title);
 			//}
 }
