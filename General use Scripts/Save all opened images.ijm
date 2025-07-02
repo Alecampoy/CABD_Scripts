@@ -1,3 +1,4 @@
+print("\\Clear");
 dir = getDirectory("Choose a Directory to save all images");
 total = nImages;
 
@@ -13,4 +14,5 @@ for (i=0;i<total;i++) {
 			//}
 }
 run("Close All");
+print("finito");
 run("Collect Garbage");
