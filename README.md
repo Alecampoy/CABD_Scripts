@@ -1,6 +1,7 @@
 # FIJI_Scripts 
 
 Se acabaron las vacaciones
+pero el git funciona regu
 
 Useful FIJI Scripts for imageJ macro languaje
 
