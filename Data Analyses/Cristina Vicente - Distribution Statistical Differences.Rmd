@@ -11,7 +11,7 @@ library(tidyverse)
 library(entropy)
 ```
 
-Cargo los datos dados.
+Cargo los datos de los histogramas generados por Cristina.
 
 ```{r}
 
