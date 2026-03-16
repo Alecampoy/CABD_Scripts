@@ -1,0 +1,189 @@
+---
+title: "Análisis Estadístico de Distribuciones Medias"
+output: html_notebook
+---
+
+# 0. Libraries y carga de datos
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(entropy)
+```
+
+Cargo los datos dados.
+
+```{r}
+
+file_path <- "P:/CABD/Lab Jaime Carvajal/Analisis Distribuciones/df_fiber_size.txt"
+data <- read.csv(file_path, sep = "\t")
+head(data)
+```
+
+Genero las categorias y el DF relevante
+```{r}
+data <- data %>% select(ID, Sex, Condition, Genotype, Area) %>% mutate(across(-Area, as.factor))
+```
+
+# 1. Exploración de los datos
+
+```{r}
+summary(data)
+table(data$Label, data$quantile)
+```
+
+Veo cuantos elementos tenemos por categorias.
+
+```{r}
+data <- data %>% select(-Genotype)
+data %>% select(ID, Sex, Condition) %>% distinct() %>% select(Sex, Condition) %>% table()
+```
+
+Podemos generar un gráfico para ver las distribuciones de cada elemento Label. En lugar de un histograma lo hago como lineas.
+
+Histograms (geom_histogram()) display the counts with bars; frequency polygons (geom_freqpoly()) display the counts with lines
+
+```{r}
+ggplot(data, aes(x = Area, color = ID, group =  ID)) +
+  geom_freqpoly(bins = 20, alpha = 0.6) +
+  facet_grid(Sex ~ Condition) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5), legend.position = "none")
+```
+
+## Histogramas Agregados
+
+Genero los histogramas como vectores, considero el bin como el final de dicho bin
+
+```{r}
+breaks_seq <- seq(0, ceiling(max(data$Area)/1000)*1000, length.out = 21)
+
+histograms <- data |>
+  nest(data = -c(ID, Sex, Condition)) |>
+  mutate(
+    histogram = map(data, ~{
+      h <- hist(as.numeric(.x$Area), breaks = breaks_seq, plot = FALSE) # asi calculo el histograma como densidad para normalizar por el N de cada individuo
+      tibble(
+        bin = h$breaks[-1],
+        counts = h$counts,
+        prob = h$counts / sum(h$counts),
+        density = h$density
+      )
+    })
+  ) |> select(-data) |>
+  unnest(histogram)
+```
+
+Agrego los histogramas calculando su dispersión
+
+```{r}
+histograms_agg <- histograms |>
+  group_by(Sex, Condition, bin) |>
+  summarise(
+    density_mean = mean(density, na.rm = TRUE),
+    density_sd = sd(density, na.rm = TRUE),
+    density_mse = sd(density, na.rm = TRUE)/sqrt(n()),
+    prob_mean = mean(prob, na.rm = TRUE),
+    prob_sd = sd(prob, na.rm = TRUE),
+    prob_mse = sd(prob, na.rm = TRUE)/sqrt(n()),
+    .groups = "drop"
+  )
+
+# Create line plot with SD as ribbon
+ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha=0.8) +
+  facet_wrap(~Sex) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x = "Bin",
+    y = "Mean Density (± SD)",
+    title = "Average Bin Counts by Sex and Condition",
+    color = "Sex",
+    fill = "Sex"
+  )
+```
+
+# 2 Comparación Funciones de Probabilidad 
+
+Para simplificar, voy a usar solamente las comparaciones entre los sex=M porque hay más histogramas de cada elemento, este notebook esta libre de machismo
+
+```{r}
+histograms_agg <- histograms_agg %>% filter(Sex == "M") %>% select(-Sex)
+# histograms_agg <- histograms_agg %>% mutate(Condition = paste0(Sex, "_", Condition)) %>% select(-Sex)
+```
+
+
+## 2.1 Kullback-Leiber Divergence
+
+La divergencia KL es una medida no simétrica de la similitud o diferencia entre dos funciones de distribución de probabilidad P y Q. (source wiki). Para el cálculo de la KL divergencia, hay que usar la probabilidad de la funcion de distribucion.
+
+```{r}
+P_adult <- histograms_agg %>%  filter(Condition == "ADULT") %>% select(prob_mean) %>% as_vector()
+P_young <- histograms_agg %>%  filter(Condition == "YG") %>% select(prob_mean) %>% as_vector()
+P_old <- histograms_agg %>%  filter(Condition == "OLD") %>% select(prob_mean) %>% as_vector()
+sum(P_adult)
+```
+
+Como algunos bins tienen prob = 0, eso ocasiona un problema a la hora de calcular KL. La solucion de chatgpt es sumar eps o usar KL.Dirichlet. Aqui vemos la diferencia entre dos distribuciones.
+
+```{r}
+eps <- 1e-9
+KL.empirical(P_young + eps, P_old + eps)  
+KL.Dirichlet(P_young, P_old, a1=eps,a2=eps)
+```
+
+En lugar de comparar todas una a una, voy a calcular la matriz de distancias KL entre todas las condiciones. Codigo ayuda chatgpt.
+
+```{r}
+P_list <- histograms_agg %>% select(Condition, prob_mean) %>% nest(data = -Condition) %>% deframe()
+n <- length(P_list)
+KL_matrix <- matrix(NA, nrow = n, ncol = n, dimnames = list(names(P_list), names(P_list)))
+
+for (i in 1:n) {
+  for (j in 1:n) {
+    KL_matrix[i, j] <- KL.empirical(as_vector(P_list[[i]]) + eps, as_vector(P_list[[j]]) + eps) 
+  }
+}
+
+KL_matrix
+```
+
+Se puede pintar un heatmap para ver como se comportan.
+
+```{r}
+# Codigo Claude Haiku
+
+# Convert to long format for ggplot
+kl_long <- as.data.frame(KL_matrix) %>%
+  rownames_to_column(var = "from") %>%
+  pivot_longer(cols = -from, names_to = "to", values_to = "kl_value") %>%
+  mutate(from = factor(from, levels = rev(colnames(KL_matrix))),
+         to = factor(to, levels = colnames(KL_matrix)))
+
+# Create heatmap
+ggplot(kl_long, aes(x = to, y = from, fill = kl_value)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = round(kl_value, 3)), size = 4, color = "black") +
+  scale_fill_gradient(low = "white", high = "darkred", name = "KL Divergence") +
+  labs(
+    title = "KL Divergence Matrix",
+    x = "To (Q)",
+    y = "From (P)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 11, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+```
+
+Le hemos dado numeros a lo que hemos visto en la gráfica, que las funciones de probabilidad de ADULT esta más separada de OLD y YG que OLD con YG.
+
+Este análisis se podría hacer con todas las funciones de probabilidad para cada individuo y y evaluar la matriz de divergencias, esperando agrupaciones entre individuos de condiciones similares y divergencia entre condiciones diferentes. 
+
+**Pero esta divergencia no es un test estadistico que compare diferentes muestras de una distribución, asi que este análisis no tiene interes para nuestro estudio**
+
+## 2.2 KS-Test
