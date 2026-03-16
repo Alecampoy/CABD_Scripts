@@ -14,7 +14,6 @@ library(entropy)
 Cargo los datos de los histogramas generados por Cristina.
 
 ```{r}
-
 file_path <- "P:/CABD/Lab Jaime Carvajal/Analisis Distribuciones/df_fiber_size.txt"
 data <- read.csv(file_path, sep = "\t")
 head(data)
@@ -29,7 +28,6 @@ data <- data %>% select(ID, Sex, Condition, Genotype, Area) %>% mutate(across(-A
 
 ```{r}
 summary(data)
-table(data$Label, data$quantile)
 ```
 
 Veo cuantos elementos tenemos por categorias.
@@ -53,7 +51,7 @@ ggplot(data, aes(x = Area, color = ID, group =  ID)) +
 
 ## Histogramas Agregados
 
-Genero los histogramas como vectores, considero el bin como el final de dicho bin
+Genero los histogramas como vectores y los uno en un DF. Para el bin, considero el final del bin como el valor, así no tengo el elemento 0
 
 ```{r}
 breaks_seq <- seq(0, ceiling(max(data$Area)/1000)*1000, length.out = 21)
