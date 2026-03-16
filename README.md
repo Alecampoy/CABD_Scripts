@@ -1,6 +1,6 @@
 # CABD
 
-Notebooks and Scripts used for my work at CABD 
+Notebooks and Scripts used for my work at CABD.
 
 ## Data Analyses
 
