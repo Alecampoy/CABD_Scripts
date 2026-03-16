@@ -78,12 +78,12 @@ Agrego los histogramas calculando su dispersión
 histograms_agg <- histograms |>
   group_by(Sex, Condition, bin) |>
   summarise(
-    density_mean = mean(density, na.rm = TRUE),
-    density_sd = sd(density, na.rm = TRUE),
-    density_mse = sd(density, na.rm = TRUE)/sqrt(n()),
-    prob_mean = mean(prob, na.rm = TRUE),
-    prob_sd = sd(prob, na.rm = TRUE),
-    prob_mse = sd(prob, na.rm = TRUE)/sqrt(n()),
+    density_mean = mean(density, na.rm = FALSE),
+    density_sd = sd(density, na.rm = FALSE),
+    density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    prob_mean = mean(prob, na.rm = FALSE),
+    prob_sd = sd(prob, na.rm = FALSE),
+    prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
     .groups = "drop"
   )
 
@@ -104,19 +104,60 @@ ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = 
   )
 ```
 
-# 2 Comparación Funciones de Probabilidad 
+## ECDF Agregadas
 
-Para simplificar, voy a usar solamente las comparaciones entre los sex=M porque hay más histogramas de cada elemento, este notebook esta libre de machismo
+Una manera mejor de visualizar las diferencias de las distribuciones es mediante las Empirical Cumulative Density Function. *Visualmente se vuelven más evidentes las diferencias y podemos ver como en un intervalo hay poco solapamiento de la dispersión de los histogramas más claramente.*
+
+```{r}
+# Calculo las CDF  de la probabilidad y la densidad -equivalentes pero mantengo las dos-
+histograms <- histograms |>
+  arrange(ID, bin) |>
+  group_by(ID, Condition) |>
+  mutate(cdf_prob = cumsum(prob), cdf_density = cumsum(density)) |>
+  ungroup()
+
+histograms_agg <- histograms |>
+  group_by(Sex, Condition, bin) |>
+  summarise(
+    density_mean = mean(density, na.rm = FALSE),
+    density_sd = sd(density, na.rm = FALSE),
+    density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    prob_mean = mean(prob, na.rm = FALSE),
+    prob_sd = sd(prob, na.rm = FALSE),
+    prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
+    cdf_prob_mean = mean(cdf_prob, na.rm = FALSE),
+    cdf_prob_sd = sd(cdf_prob, na.rm = FALSE),
+    cdf_prob_mse = sd(cdf_prob, na.rm = FALSE)/sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = cdf_prob_mean - cdf_prob_sd, ymax = cdf_prob_mean + cdf_prob_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.9) +
+  facet_wrap(~Sex) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x     = "Fiber Area (bin)",
+    y     = "Cumulative Probability (± SD)",
+    title = "CDF por Condición (Males)",
+    color = "Condition", fill = "Condition"
+  )
+```
+
+# 2. Comparación Funciones de Probabilidad Media
+
+Para simplificar, voy a usar solamente las comparaciones entre los sex=M porque hay más muestras de cada condición, este notebook esta libre de machismo.
 
 ```{r}
 histograms_agg <- histograms_agg %>% filter(Sex == "M") %>% select(-Sex)
 # histograms_agg <- histograms_agg %>% mutate(Condition = paste0(Sex, "_", Condition)) %>% select(-Sex)
 ```
 
-
 ## 2.1 Kullback-Leiber Divergence
 
-La divergencia KL es una medida no simétrica de la similitud o diferencia entre dos funciones de distribución de probabilidad P y Q. (source wiki). Para el cálculo de la KL divergencia, hay que usar la probabilidad de la funcion de distribucion.
+La divergencia KL es una medida no simétrica de la similitud o diferencia entre dos funciones de distribución de probabilidad P y Q. (source wiki). Para el cálculo de la KL divergencia, hay que usar la probabilidad de la funcion de distribucion. Se muestra como ejercicio.
 
 ```{r}
 P_adult <- histograms_agg %>%  filter(Condition == "ADULT") %>% select(prob_mean) %>% as_vector()
@@ -125,7 +166,7 @@ P_old <- histograms_agg %>%  filter(Condition == "OLD") %>% select(prob_mean) %>
 sum(P_adult)
 ```
 
-Como algunos bins tienen prob = 0, eso ocasiona un problema a la hora de calcular KL. La solucion de chatgpt es sumar eps o usar KL.Dirichlet. Aqui vemos la diferencia entre dos distribuciones.
+Como algunos bins tienen prob = 0, eso ocasiona un problema a la hora de calcular KL. La solucion de chatgpt es sumar un eps o usar KL.Dirichlet. Aqui vemos la diferencia entre dos distribuciones.
 
 ```{r}
 eps <- 1e-9
@@ -178,10 +219,89 @@ ggplot(kl_long, aes(x = to, y = from, fill = kl_value)) +
   )
 ```
 
-Le hemos dado numeros a lo que hemos visto en la gráfica, que las funciones de probabilidad de ADULT esta más separada de OLD y YG que OLD con YG.
+Le hemos dado un primer valor numerico cuantitativo (la KL-divergence) a lo que hemos visto en la gráfica: que las funciones de probabilidad de ADULT esta más separada de OLD y YG que OLD con YG.
 
-Este análisis se podría hacer con todas las funciones de probabilidad para cada individuo y y evaluar la matriz de divergencias, esperando agrupaciones entre individuos de condiciones similares y divergencia entre condiciones diferentes. 
+Este análisis se podría hacer con todas las funciones de probabilidad para cada individuo y evaluar la matriz de divergencias, esperando agrupaciones entre individuos de condiciones similares y divergencia entre condiciones diferentes. Incluso hacer algún test tipo bootstrap, pero:
 
-**Pero esta divergencia no es un test estadistico que compare diferentes muestras de una distribución, asi que este análisis no tiene interes para nuestro estudio**
+**esta divergencia no es un test estadistico que compare diferentes muestras de una distribución, asi que este análisis no tiene interes para nuestro estudio**
 
 ## 2.2 KS-Test
+
+El test de Kolmogorov-Smirnov (KS) compara dos distribuciones acumuladas (CDF) y devuelve el estadístico D, que es la máxima diferencia absoluta entre ambas CDFs. Al trabajar con distribuciones medias (prob_mean), calculamos las CDFs directamente a partir de la suma acumulada de probabilidades.
+
+*Notas:*
+
+- La entrada de la función KS.test es un set de datos -e.g. todos los del area-, y no acepta como entrada una función de distribucion o una CDF, por lo que al agregar las funciones de probabilidad o los histogramas, no podemos introducirlos al test.
+- Hacer un pooling -introducir todas las areas de las fibras conjuntamente para cada condicion sería pseudoreplication. Por lo que este test no sería adecuado.
+- Si puede calcularse el estadistico D -que cuantifica la separación max entre distribuciones- del test sobre las CDF medias, arrojando algo similar a la KL-divergende.
+
+```{r}
+# Pairwise KS test between mean CDFs
+conditions_agg <- levels(droplevels(histograms_agg$Condition))
+pairs_agg <- combn(conditions_agg, 2, simplify = FALSE)
+
+ks_agg_results <- map_dfr(pairs_agg, \(pair) {
+  cdf_A <- histograms_agg |> filter(Condition == pair[1]) |> pull(cdf_prob_mean)
+  cdf_B <- histograms_agg |> filter(Condition == pair[2]) |> pull(cdf_prob_mean)
+  D <- max(abs(cdf_A - cdf_B))
+  tibble(comparison = paste(pair[1], "vs", pair[2]), D = round(D, 4))
+})
+
+ks_agg_results
+```
+
+SEGUIR AQUI
+matrix de combinaciones
+montecarlo 
+bootstrap
+
+Este estadístico D cuantifica la separación entre distribuciones medias pero **no produce un p-valor**, ya que los vectores `cdf_prob_mean` son distribuciones agregadas, no muestras de observaciones independientes.
+
+## 2.3 KS-Test entre histogramas individuales
+
+La unidad experimental es el animal, no la fibra. Para obtener un p-valor válido, ejecutamos el KS-test entre cada par de animales de distinta condición usando sus distribuciones de probabilidad individuales (`prob` por bin), y resumimos los resultados.
+
+```{r}
+data_male <- data |> filter(Sex == "M")
+conditions_raw <- levels(droplevels(data_male$Condition))
+pairs_raw <- combn(conditions_raw, 2, simplify = FALSE)
+
+individual_ks <- purrr::map_dfr(pairs_raw, \(pair) {
+  hist_A <- histograms |> filter(Condition == pair[1])
+  hist_B <- histograms |> filter(Condition == pair[2])
+
+  tidyr::expand_grid(id_A = unique(hist_A$ID), id_B = unique(hist_B$ID)) |>
+    purrr::pmap_dfr(\(id_A, id_B) {
+      prob_A <- hist_A |> filter(ID == id_A) |> pull(prob)
+      prob_B <- hist_B |> filter(ID == id_B) |> pull(prob)
+      test <- ks.test(prob_A, prob_B)
+      tibble(
+        comparison = paste(pair[1], "vs", pair[2]),
+        id_A = id_A, id_B = id_B,
+        D = round(test$statistic, 4),
+        p_value = test$p.value
+      )
+    })
+})
+
+individual_ks |>
+  group_by(comparison) |>
+  summarise(
+    n_pairs       = n(),
+    D_mean        = round(mean(D), 4),
+    D_sd          = round(sd(D), 4),
+    prop_sig_0.05 = round(sum(p_value < 0.05)/n(), 2),
+    .groups = "drop"
+  )
+```
+
+`prop_sig_0.05` indica qué fracción de los pares individuo×individuo resultan significativos (p < 0.05). Un valor alto y consistente indica que la diferencia entre condiciones es robusta y no depende de animales concretos.
+
+```{r}
+rnorm(50)
+```
+
+```{r}
+x <- seq(a, b, length.out = 2000)
+```
+
