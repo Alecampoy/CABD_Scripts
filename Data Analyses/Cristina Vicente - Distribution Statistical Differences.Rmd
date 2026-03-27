@@ -1,0 +1,320 @@
+---
+title: "Análisis Estadístico de Distribuciones Medias"
+output: html_notebook
+---
+
+# 0. Libraries y carga de datos
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library("entropy")
+```
+
+Cargo los datos de los histogramas generados por Cristina.
+
+```{r}
+file_path <- "P:/CABD/Lab Jaime Carvajal/Analisis Distribuciones/df_fiber_size.txt"
+data <- read.csv(file_path, sep = "\t")
+head(data)
+```
+
+Genero las categorias y el DF relevante
+```{r}
+data <- data %>% select(ID, Sex, Condition, Genotype, Area) %>% mutate(across(-Area, as.factor))
+```
+
+# 1. Exploración de los datos
+
+```{r}
+summary(data)
+```
+
+Veo cuantos elementos tenemos por categorias.
+
+```{r}
+data <- data %>% select(-Genotype)
+data %>% select(ID, Sex, Condition) %>% distinct() %>% select(Sex, Condition) %>% table()
+```
+
+Podemos generar un gráfico para ver las distribuciones del Area para cada elemento ID. En lugar de un histograma lo hago como lineas.
+
+Histograms (geom_histogram()) display the counts with bars; frequency polygons (geom_freqpoly()) display the counts with lines
+
+```{r}
+ggplot(data, aes(x = Area, color = ID, group =  ID)) +
+  geom_freqpoly(bins = 20, alpha = 0.6) +
+  facet_grid(Sex ~ Condition) +
+  scale_color_viridis_d(option = "rainbow") +  # o "rainbow", "hue"
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=5), legend.position = "none")
+```
+
+## Histogramas Agregados
+
+Genero los histogramas como vectores y los uno en un DF. Para el bin, considero el final del bin como el valor, así no tengo el elemento 0
+
+```{r}
+breaks_seq <- seq(0, ceiling(max(data$Area)/1000)*1000, length.out = 21)
+
+histograms <- data |>
+  nest(data = -c(ID, Sex, Condition)) |>
+  mutate(
+    histogram = map(data, ~{
+      h <- hist(as.numeric(.x$Area), breaks = breaks_seq, plot = FALSE) # asi calculo el histograma como densidad para normalizar por el N de cada individuo
+      tibble(
+        bin = h$breaks[-1],
+        counts = h$counts,
+        prob = h$counts / sum(h$counts),
+        density = h$density
+      )
+    })
+  ) |> select(-data) |>
+  unnest(histogram)
+```
+
+Agrego los histogramas calculando su dispersión y represento usando la SD mediante 
+
+```{r}
+histograms_agg <- histograms |>
+  group_by(Sex, Condition, bin) |>
+  summarise(
+    density_mean = mean(density, na.rm = FALSE),
+    density_sd = sd(density, na.rm = FALSE),
+    density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    prob_mean = mean(prob, na.rm = FALSE),
+    prob_sd = sd(prob, na.rm = FALSE),
+    prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
+    .groups = "drop"
+  )
+
+# Create line plot with SD as ribbon
+ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha=0.8) +
+  facet_wrap(~Sex) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x = "Bin",
+    y = "Mean Density (± SD)",
+    title = "Average Bin Counts by Sex and Condition",
+    color = "Sex",
+    fill = "Sex"
+  )
+```
+
+## ECDF Agregadas
+
+Una manera mejor de visualizar las diferencias de las distribuciones es mediante las Empirical Cumulative Density Function -ecdf-. *Visualmente se vuelven más evidentes las diferencias y podemos ver como en un intervalo hay poco solapamiento de la dispersión de los histogramas más claramente.*
+
+```{r}
+# Calculo las CDF  de la probabilidad y la densidad -equivalentes pero mantengo las dos-
+histograms <- histograms |>
+  arrange(ID, bin) |>
+  group_by(ID, Condition) |>
+  mutate(cdf_prob = cumsum(prob), cdf_density = cumsum(density)) |>
+  ungroup()
+
+histograms_agg <- histograms |>
+  group_by(Sex, Condition, bin) |>
+  summarise(
+    density_mean = mean(density, na.rm = FALSE),
+    density_sd = sd(density, na.rm = FALSE),
+    density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    prob_mean = mean(prob, na.rm = FALSE),
+    prob_sd = sd(prob, na.rm = FALSE),
+    prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
+    cdf_prob_mean = mean(cdf_prob, na.rm = FALSE),
+    cdf_prob_sd = sd(cdf_prob, na.rm = FALSE),
+    cdf_prob_mse = sd(cdf_prob, na.rm = FALSE)/sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = cdf_prob_mean - cdf_prob_sd, ymax = cdf_prob_mean + cdf_prob_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.9) +
+  facet_wrap(~Sex) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x     = "Fiber Area (bin)",
+    y     = "Cumulative Probability (± SD)",
+    title = "CDF por Condición (Males)",
+    color = "Condition", fill = "Condition"
+  )
+```
+
+# 2. Comparación de Medias de Funciones de Probabilidad
+
+En este apartado calculo medidas de la divergencia pero que no son tan potentes para nuestro análisis, ya que por defecto no tienen en cuenta la variabilidad entre condiciones. LLo desarrollo por ejemplificar, puede saltarse este apartado
+
+## 2.1 Kullback-Leiber Divergence
+
+Para simplificar, voy a usar solamente las comparaciones entre los sex=M porque hay más muestras de cada condición, este notebook esta libre de machismo.
+
+```{r}
+histograms_agg <- histograms_agg %>% filter(Sex == "M") %>% select(-Sex)
+# histograms_agg <- histograms_agg %>% mutate(Condition = paste0(Sex, "_", Condition)) %>% select(-Sex)
+```
+
+La divergencia KL es una medida no simétrica de la similitud o diferencia entre dos funciones de distribución de probabilidad P y Q. (source wiki). Para el cálculo de la KL divergencia, hay que usar la probabilidad de la funcion de distribucion. Se muestra como ejercicio.
+
+```{r}
+P_adult <- histograms_agg %>%  filter(Condition == "ADULT") %>% select(prob_mean) %>% as_vector()
+P_young <- histograms_agg %>%  filter(Condition == "YG") %>% select(prob_mean) %>% as_vector()
+P_old <- histograms_agg %>%  filter(Condition == "OLD") %>% select(prob_mean) %>% as_vector()
+sum(P_adult)
+```
+
+Como algunos bins tienen prob = 0, eso ocasiona un problema a la hora de calcular KL. La solucion de chatgpt es sumar un eps o usar KL.Dirichlet. Aqui vemos la diferencia entre dos distribuciones.
+
+```{r}
+eps <- 1e-9
+KL.empirical(P_young + eps, P_old + eps)  
+KL.Dirichlet(P_young, P_old, a1=eps,a2=eps)
+```
+
+En lugar de comparar todas una a una, voy a calcular la matriz de distancias KL entre todas las condiciones. Codigo ayuda chatgpt.
+
+```{r}
+P_list <- histograms_agg %>% select(Condition, prob_mean) %>% nest(data = -Condition) %>% deframe()
+n <- length(P_list)
+KL_matrix <- matrix(NA, nrow = n, ncol = n, dimnames = list(names(P_list), names(P_list)))
+
+for (i in 1:n) {
+  for (j in 1:n) {
+    KL_matrix[i, j] <- KL.empirical(as_vector(P_list[[i]]) + eps, as_vector(P_list[[j]]) + eps) 
+  }
+}
+
+KL_matrix
+```
+
+Se puede pintar un heatmap para ver como se comportan.
+
+```{r}
+# Codigo Claude Haiku
+
+# Convert to long format for ggplot
+kl_long <- as.data.frame(KL_matrix) %>%
+  rownames_to_column(var = "from") %>%
+  pivot_longer(cols = -from, names_to = "to", values_to = "kl_value") %>%
+  mutate(from = factor(from, levels = rev(colnames(KL_matrix))),
+         to = factor(to, levels = colnames(KL_matrix)))
+
+# Create heatmap
+ggplot(kl_long, aes(x = to, y = from, fill = kl_value)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  geom_text(aes(label = round(kl_value, 3)), size = 4, color = "black") +
+  scale_fill_gradient(low = "white", high = "darkred", name = "KL Divergence") +
+  labs(
+    title = "KL Divergence Matrix",
+    x = "To (Q)",
+    y = "From (P)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 11, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+```
+
+Le hemos dado un primer valor numerico cuantitativo (la KL-divergence) a lo que hemos visto en la gráfica: que las funciones de probabilidad de ADULT esta más separada de OLD y YG que OLD con YG.
+
+Este análisis se podría hacer con todas las funciones de probabilidad para cada individuo y trabajar sobre la matriz de divergencias, esperando agrupaciones entre individuos de condiciones similares y divergencia entre condiciones diferentes. Incluso hacer algún test tipo bootstrap, pero:
+
+**esta divergencia no es un test estadistico que compare diferentes muestras de una distribución, asi que este análisis no tiene interes para nuestro estudio**
+
+## 2.2 KS-Test
+
+El test de Kolmogorov-Smirnov (KS) compara dos distribuciones acumuladas (CDF) y devuelve el estadístico D, que es la máxima diferencia absoluta entre ambas CDFs. Al trabajar con distribuciones medias (prob_mean), calculamos las CDFs directamente a partir de la suma acumulada de probabilidades.
+
+*Notas:*
+
+- La entrada de la función KS.test deber ser un set de datos -e.g. todos los valores del area-, y no acepta como entrada una función de distribucion o una CDF, por lo que no podemos introducirlos al test al agregar las funciones de probabilidad o los histogramas. *Por este motivo no obtendremos un p-value*.
+- Hacer un pooling -introducir todas las areas de las fibras conjuntamente para cada condicion sería pseudoreplication. Por lo que este test no sería adecuado.
+- Sí que puede calcularse el estadistico D -el cual cuantifica la separación max entre distribuciones- del test sobre las CDF medias, arrojando un resultado similar a la KL-divergende. La diferencia radica en que KL tiene en cuenta toda la distribución, pero KS solo el máximo de separación en la ecdf, lo cual es solo un punto y es su principal crítica.
+
+```{r}
+# Pairwise KS test between mean CDFs
+conditions_agg <- levels(droplevels(histograms_agg$Condition))
+pairs_agg <- combn(conditions_agg, 2, simplify = FALSE)
+
+ks_agg_results <- map_dfr(pairs_agg, \(pair) {
+  cdf_A <- histograms_agg |> filter(Condition == pair[1]) |> pull(cdf_prob_mean)
+  cdf_B <- histograms_agg |> filter(Condition == pair[2]) |> pull(cdf_prob_mean)
+  D <- max(abs(cdf_A - cdf_B))
+  tibble(comparison = paste(pair[1], "vs", pair[2]), D = round(D, 4))
+})
+
+ks_agg_results
+```
+
+Este estadístico D cuantifica la separación entre distribuciones medias pero **no produce un p-valor**, ya que los vectores `cdf_prob_mean` son distribuciones agregadas, no muestras de observaciones independientes.
+
+Se podría hacer un análisis sobre la matriz de distancias entre todas las distribuciones. Y también un análisis haciendo una simulación montecarlo sobre distribuciones que sigan nuestras densidades empiricas medias calculadas. Pero creo que estos dos métodos son una complicación innecesaria y hay métodos más elegantes.
+
+## 2.3 KS-Test entre histogramas por individuos
+
+La unidad experimental es el animal, y cada uno tiene multiples observaciones del Area. Para obtener un p-valor válido, ejecutamos el KS-test entre cada par de animales lo que otorga un p-valor a la comparación entre las distribuciones de probabilidad individuales. Despues resumimos los resultados. Con esto queremos ver la variabilidad del KS.test entre nuestros animales.
+
+```{r}
+data_male <- data |> filter(Sex == "M")
+conditions_raw <- levels(droplevels(data_male$Condition))
+
+# Crear todas las combinaciones de condiciones (entre y dentro)
+all_comparisons <- c(
+  combn(conditions_raw, 2, simplify = FALSE),  # Pares entre condiciones diferentes
+  lapply(conditions_raw, \(x) c(x, x))         # Pares dentro de la misma condición
+)
+
+# Generar un DF único con todas las comparaciones
+ks_results <- purrr::map_dfr(all_comparisons, \(pair) {
+  data_A <- data_male |> filter(Condition == pair[1])
+  data_B <- data_male |> filter(Condition == pair[2])
+  
+  tidyr::expand_grid(id_A = unique(data_A$ID), id_B = unique(data_B$ID)) |>
+    purrr::pmap_dfr(\(id_A, id_B) {
+      area_A <- data_A |> filter(ID == id_A) |> pull(Area)
+      area_B <- data_B |> filter(ID == id_B) |> pull(Area)
+      test <- suppressWarnings(ks.test(area_A, area_B))
+      tibble(
+        comparison = paste(pair[1], "vs", pair[2]),
+        id_A = id_A, id_B = id_B,
+        D = round(test$statistic, 4),
+        p_value = test$p.value
+      )
+    })
+})
+
+# Agregar por comparison
+ks_results |>
+  group_by(comparison) |>
+  summarise(
+    n_pairs       = n(),
+    D_mean        = round(mean(D), 4),
+    D_sd          = round(sd(D), 4),
+    prop_sig_0.05 = round(sum(p_value < 0.05)/n(), 2),
+    .groups = "drop"
+  ) |> 
+  slice(c(1,4, 6, 2, 3, 5))
+```
+
+`prop_sig_0.05` indica qué fracción de las comparaciones entre pares individuo×individuo resultan significativos (p < 0.05).
+
+INTERPRETAR EL DF
+
+ESTE ANALISIS ES REGULIN ELEGANTE
+
+PASAR A 3.
+
+# 3. Comparación entre condiciones
+
+
+```{r}
+
+```
+

@@ -1,0 +1,1 @@
+This folder contains non curated and customized scripts for a particular task requiered from an ALMIA's Image analysis unit user
