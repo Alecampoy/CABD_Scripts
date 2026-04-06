@@ -322,9 +322,13 @@ Este análisis, aunque nos da alguna información e intuición sobre las compara
 
 *Nota: Parte de este apartado lo he generado con la ayuda de Chatgpt, pero solicitando información sobre comparación entre espectros en lugar de histogramas, ya que estas comparaciones se realizan en espectroscopía. La idoneidad de los test sugeridos se ha estudiado independientemente sin IA.*
 
-Para este análisis parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente.
+Realizaré la comparación mediante diferentes métodos, para ello parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente.
 
 ## 3.1 Bootstrap
+
+El primer método sera hacer un resampleado bootstraps y calcular la diferencia de las medias bajo un intervalo de confianza.
+
+Este método consiste
 
 ```{r}
 # Funcion Bootstrap
@@ -343,7 +347,7 @@ bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
       arrange(bin) %>%
       pull(bootstrap_prob)
     })
-  t(resampling)  # (n_boot x n_bins)
+  t(resampling)  # transpose
 }
 # Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 ```
@@ -363,6 +367,7 @@ delta <- bootA - bootB
 
 bootstrap <- tibble(
   bin = breaks_seq[-1],
+  mean_difference = histograms_agg %>% filter(Condition=="ADULT") %>% pull(prob_mean) - histograms_agg %>% filter(Condition=="OLD") %>% pull(prob_mean),
   bootstrap_mean_difference = apply(delta, 2, mean),  
   ci_low  = apply(delta, 2, quantile, 0.025),
   ci_high = apply(delta, 2, quantile, 0.975)
@@ -373,16 +378,16 @@ Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región
 
 ```{r}
 # Plot del bootstrap
-ggplot(bootstrap, aes(x = bin, y = bootstrap_mean_difference)) +
+ggplot(bootstrap, aes(x = bin, y = mean_difference)) +
   geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.8, alpha=0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_continuous(breaks = breaks_seq) +
   theme_minimal() +
   labs(
     x = "Bin",
-    y = "Bootstrap Mean Difference)",
-    title = "Average Bin Counts by Sex and Condition",
-    color = "Sex",
-    fill = "Sex"
+    y = "Bootstrap Mean Difference",
+    title = "Bootstraped Difference with 95% CI per bin",
   )
 
 ```
