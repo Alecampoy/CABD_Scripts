@@ -1,0 +1,7 @@
+{
+  "model": {
+    "thinkingEffort": "low",
+    "id": "claude-haiku-4-5",
+    "provider": "positai"
+  }
+}
