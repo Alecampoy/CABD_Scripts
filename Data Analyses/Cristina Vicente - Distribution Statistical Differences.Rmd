@@ -348,6 +348,13 @@ bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
 # Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 ```
 
+No estás generando histogramas “nuevos” desde cero, sino:
+
+generando muchas versiones plausibles de la media de tus histogramas originales
+Un IC del 95% significa:
+
+Si repitieras el experimento muchas veces, el 95% de los IC contendrían la verdadera diferencia
+
 ```{r}
 bootA <- bootstrap_mean(histograms, "ADULT")
 bootB <- bootstrap_mean(histograms, "OLD")
@@ -356,14 +363,29 @@ delta <- bootA - bootB
 
 bootstrap <- tibble(
   bin = breaks_seq[-1],
-  bootstrap_mean = apply(delta, 2, mean)
-  ci_  
-) 
-
-
+  bootstrap_mean_difference = apply(delta, 2, mean),  
+  ci_low  = apply(delta, 2, quantile, 0.025),
+  ci_high = apply(delta, 2, quantile, 0.975)
+)
 ```
 
-Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico).
+Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico). Si el intervalo NO incluye 0, puede significar una diferencia significativa.
+
+```{r}
+# Plot del bootstrap
+ggplot(bootstrap, aes(x = bin, y = bootstrap_mean_difference)) +
+  geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha=0.8) +
+  theme_minimal() +
+  labs(
+    x = "Bin",
+    y = "Bootstrap Mean Difference)",
+    title = "Average Bin Counts by Sex and Condition",
+    color = "Sex",
+    fill = "Sex"
+  )
+
+```
 
 
 
