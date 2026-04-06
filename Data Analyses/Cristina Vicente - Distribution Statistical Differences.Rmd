@@ -285,7 +285,7 @@ ks_results <- purrr::map_dfr(all_comparisons, \(pair) {
   data_B <- data_male |> filter(Condition == pair[2])
   
   tidyr::expand_grid(id_A = unique(data_A$ID), id_B = unique(data_B$ID)) |>
-    purrr::pmap_dfr(\(id_A, id_B) {
+    pmap_dfr(\(id_A, id_B) {
       area_A <- data_A |> filter(ID == id_A) |> pull(Area)
       area_B <- data_B |> filter(ID == id_B) |> pull(Area)
       test <- suppressWarnings(ks.test(area_A, area_B))
@@ -326,9 +326,9 @@ Realizaré la comparación mediante diferentes métodos, para ello parto de los 
 
 ## 3.1 Bootstrap
 
-El primer método sera hacer un resampleado bootstraps y calcular la diferencia de las medias bajo un intervalo de confianza.
+El primer método sera hacer un remuestreo bootstraps y calcular la diferencia de las medias bajo un intervalo de confianza.
 
-Este método consiste
+Un bootstrap consiste en generar multiples veces (>1000) un remuestreo aleatorio de los datos de mi muestra para con ello generar un intervalo de confianza cuanto puede variar la diferencia de las medias si repitieramos el experimento. 
 
 ```{r}
 # Funcion Bootstrap
