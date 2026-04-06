@@ -55,6 +55,7 @@ ggplot(data, aes(x = Area, color = ID, group =  ID)) +
 Genero los histogramas como vectores y los uno en un DF. Para el bin, considero el final del bin como el valor, así no tengo el elemento 0. Todos los histogramas tendrán los mismos breaks y los mismos limites.
 
 ```{r}
+# Histogramas
 breaks_seq <- seq(0, ceiling(max(data$Area)/1000)*1000, length.out = 21)
 
 histograms <- data |>
@@ -71,13 +72,8 @@ histograms <- data |>
     })
   ) |> select(-data) |>
   unnest(histogram)
-```
 
-## Visualización Histogramas Agregados
-
-Represento los histogramas de la agregación, y representando su dispersión usando la SD como medida.
-
-```{r}
+# Histogramas agregados
 histograms_agg <- histograms |>
   group_by(Sex, Condition, bin) |>
   summarise(
@@ -89,7 +85,13 @@ histograms_agg <- histograms |>
     prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
     .groups = "drop"
   )
+```
 
+## Visualización Histogramas Agregados
+
+Represento los histogramas de la agregación, y representando su dispersión usando la SD como medida.
+
+```{r}
 # Create line plot with SD as ribbon
 ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
   geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
@@ -133,7 +135,10 @@ histograms_agg <- histograms |>
     cdf_prob_mse = sd(cdf_prob, na.rm = FALSE)/sqrt(n()),
     .groups = "drop"
   )
+```
 
+
+```{r}
 ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill = Condition)) +
   geom_ribbon(aes(ymin = cdf_prob_mean - cdf_prob_sd, ymax = cdf_prob_mean + cdf_prob_sd), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.9) +
@@ -153,14 +158,15 @@ ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill =
 
 En este apartado calculo medidas de la divergencia entre distribuciones, pero que no son tan potentes para nuestro análisis, ya que por defecto no tienen en cuenta la variabilidad entre condiciones. Las desarrollo como ejercicio y para ejemplificar y justificar porque necesitamos un análisis más potente, puede saltarse este apartado.
 
-## 2.1 Kullback-Leiber Divergence
-
 Para simplificar, voy a usar solamente las comparaciones entre los sex=M porque hay más muestras de cada condición, este notebook esta libre de machismo.
 
 ```{r}
+histograms <- histograms %>% filter(Sex == "M") %>% select(-Sex)
 histograms_agg <- histograms_agg %>% filter(Sex == "M") %>% select(-Sex)
 # histograms_agg <- histograms_agg %>% mutate(Condition = paste0(Sex, "_", Condition)) %>% select(-Sex)
 ```
+
+## 2.1 Kullback-Leiber Divergence
 
 La divergencia KL es una medida no simétrica de la similitud o diferencia entre dos funciones de distribución de probabilidad P y Q. (source wiki). Para el cálculo de la KL divergencia, hay que usar la probabilidad de la funcion de distribucion. 
 
@@ -316,36 +322,49 @@ Este análisis, aunque nos da alguna información e intuición sobre las compara
 
 *Nota: Parte de este apartado lo he generado con la ayuda de Chatgpt, pero solicitando información sobre comparación entre espectros en lugar de histogramas, ya que estas comparaciones se realizan en espectroscopía. La idoneidad de los test sugeridos se ha estudiado independientemente sin IA.*
 
-Para este análisis parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anterioremente.
+Para este análisis parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente.
 
 ## 3.1 Bootstrap
 
 ```{r}
-
-
-bootstrap_mean <- function(df, group_name, n_boot = 1000) {
-  
-  df_g <- df %>% filter(group == group_name)
-  ids <- unique(df_g$id)
-  n <- length(ids)
-  
-  res <- replicate(n_boot, {
-    
-    # samplear histogramas completos
-    sampled_ids <- sample(ids, size = n, replace = TRUE)
-    
-    df_boot <- df_g %>% filter(id %in% sampled_ids)
-    
+# Funcion Bootstrap
+bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
+  df_group <- df %>% filter(Condition == condition_name)
+  IDs <- unique(df_group$ID)
+  n <- length(IDs)
+  # samplear histogramas completos
+  resampling <- replicate(n_boot, {
+    sampled_ids <- sample(IDs, size = n, replace = TRUE)
+    df_boot <- data.frame(ID = sampled_ids) %>% left_join(df_group, by = "ID", relationship = "many-to-many")
     # promedio por bin
     df_boot %>%
       group_by(bin) %>%
-      summarise(mean_val = mean(value), .groups = "drop") %>%
+      summarise(bootstrap_prob = mean(prob), .groups = "drop") %>%
       arrange(bin) %>%
-      pull(mean_val)
-    
-  })
-  
-  t(res)  # (n_boot x n_bins)
+      pull(bootstrap_prob)
+    })
+  t(resampling)  # (n_boot x n_bins)
 }
+# Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 ```
+
+```{r}
+bootA <- bootstrap_mean(histograms, "ADULT")
+bootB <- bootstrap_mean(histograms, "OLD")
+
+delta <- bootA - bootB
+
+bootstrap <- tibble(
+  bin = breaks_seq[-1],
+  bootstrap_mean = apply(delta, 2, mean)
+  ci_  
+) 
+
+
+```
+
+Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico).
+
+
+
 
