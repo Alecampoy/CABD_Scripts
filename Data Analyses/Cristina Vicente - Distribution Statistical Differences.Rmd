@@ -468,7 +468,7 @@ Y en este último caso, como se esperaba, el test arroja un resultado claro de n
 
 Habría que probarlo en más condiciones.
 
-## 3.3 XXX
+## 3.3 XXXX
 
 
 
