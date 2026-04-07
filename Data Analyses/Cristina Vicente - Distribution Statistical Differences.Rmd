@@ -396,9 +396,48 @@ TO DO: bootstrap para todas las condiciones
 
 ## 3.2 Multisample E-statistic (Energy) Test of Equal Distributions
 
-Este test compara si 2
+Este test compara si 2 vectores (observaciones) provienen de 2 distribuciones independientes, es decir si ambos conjuntos X,Y provienen de la misma distribución multivariante.
 
+refs.
 https://www.rdocumentation.org/packages/energy/versions/1.7-12/topics/eqdist.etest
+https://es.wikipedia.org/wiki/Distancia_de_energia
+Szekely, G. J. and Rizzo, M. L. (2004) Testing for Equal Distributions in High Dimension, InterStat, November (5).
+
+Hasta donde he entendido, el test calcula la energía (relacionada con la distancia entre distribuciones, ver formula) entre los dos grupos de las distribuciones (es valido para más grupos). Siendo 0 para muestras de identicas distribuciones. Para el cálculo de un p-valor realiza también bootstrap (sin entrar en detalles).
+
+```{r}
+# The statistic is computed from the original pooled samples, stacked in matrix x where each row is a multivariate observation, or the corresponding distance matrix. The first sizes[1] rows of x are the first sample, the next sizes[2] rows of x are the second sample, etc. 
+
+# Para ello hay que usar los datos en un formato donde cada fila es un espectro y cada columna un bin del espectro
+
+histograms_wide <- histograms |>
+  select(ID, Condition, bin, density) |>
+  pivot_wider(names_from = bin, values_from = density) |> 
+  arrange(Condition)
+
+# Como hay que darle los sizes al test, los saco de las veces que se repiten condicion. El DF tiene que estar ordenado alfabeticamente
+
+sizes_condition <- histograms_wide %>% group_by(Condition) %>% summarise(n()) 
+sizes_condition
+```
+
+Realizo el test para las tres condiciones a la vez, del mismo modo que muesta eqdis.test() en su ejemplo para irir
+
+```{r}
+# Mi input son rows por observacion y dimensiones (bins) por columna, eliminando otras variables. 
+
+eqdist.etest(as.matrix(histograms_wide[,-c(1,2)]), sizes_condition %>% pull(), R = 2000)
+
+```
+
+El test arroja un P-value de 0.13, por lo que se descarta la hipotesis alternativa de que las muestras provienen de diferentes distribuciones. Vamos a comparar los resultados por parejas
+
+
+
+```{r}
+install.packages("estats")
+
+```
 
 
 
