@@ -133,14 +133,17 @@ histograms_agg <- histograms |>
     cdf_prob_mean = mean(cdf_prob, na.rm = FALSE),
     cdf_prob_sd = sd(cdf_prob, na.rm = FALSE),
     cdf_prob_mse = sd(cdf_prob, na.rm = FALSE)/sqrt(n()),
+    cdf_den_mean = mean(cdf_density, na.rm = FALSE),
+    cdf_den_sd = sd(cdf_density, na.rm = FALSE),
+    cdf_den_mse = sd(cdf_density, na.rm = FALSE)/sqrt(n()),
     .groups = "drop"
   )
 ```
 
 
 ```{r}
-ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill = Condition)) +
-  geom_ribbon(aes(ymin = cdf_prob_mean - cdf_prob_sd, ymax = cdf_prob_mean + cdf_prob_sd), alpha = 0.2, color = NA) +
+ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = cdf_den_mean - cdf_den_sd, ymax = cdf_den_mean + cdf_den_sd), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.9) +
   facet_wrap(~Sex) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
@@ -148,7 +151,7 @@ ggplot(histograms_agg, aes(x = bin, y = cdf_prob_mean, color = Condition, fill =
   theme_minimal() +
   labs(
     x     = "Fiber Area (bin)",
-    y     = "Cumulative Probability (± SD)",
+    y     = "Cumulative Density (± SD)",
     title = "CDF por Condición (Males)",
     color = "Condition", fill = "Condition"
   )
@@ -328,7 +331,7 @@ Realizaré la comparación mediante diferentes métodos, para ello parto de los 
 
 El primer método sera hacer un remuestreo bootstraps y calcular la diferencia de las medias bajo un intervalo de confianza.
 
-Un bootstrap consiste en generar multiples veces (>1000) un remuestreo aleatorio de los datos de mi muestra para con ello generar un intervalo de confianza cuanto puede variar la diferencia de las medias si repitieramos el experimento. 
+Un bootstrap consiste en generar multiples veces (>1000) un remuestreo aleatorio de los datos de mi muestra para con ello generar un intervalo de confianza sobre cuanto puede variar la diferencia de las medias si repitieramos el experimento. Es algo análogo a un test de probabilidad. Lo hago considerando los histogramas normalizados por densidad (Integral densidad = 1).
 
 ```{r}
 # Funcion Bootstrap
@@ -343,31 +346,28 @@ bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
     # promedio por bin
     df_boot %>%
       group_by(bin) %>%
-      summarise(bootstrap_prob = mean(prob), .groups = "drop") %>%
+      summarise(bootstrap_density = mean(density), .groups = "drop") %>%
       arrange(bin) %>%
-      pull(bootstrap_prob)
+      pull(bootstrap_density)
     })
   t(resampling)  # transpose
 }
 # Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 ```
 
-No estás generando histogramas “nuevos” desde cero, sino:
+Generando muchas versiones plausibles de la media de tus histogramas originales para crear un intervalo de confianza.
 
-generando muchas versiones plausibles de la media de tus histogramas originales
-Un IC del 95% significa:
-
-Si repitieras el experimento muchas veces, el 95% de los IC contendrían la verdadera diferencia
+Un IC del 95% significa: Si repitieras el experimento muchas veces, el 95% de los IC contendrían la verdadera diferencia
 
 ```{r}
-bootA <- bootstrap_mean(histograms, "ADULT")
-bootB <- bootstrap_mean(histograms, "OLD")
+bootA <- bootstrap_mean(histograms, "ADULT", 2000)
+bootB <- bootstrap_mean(histograms, "OLD", 2000)
 
 delta <- bootA - bootB
 
 bootstrap <- tibble(
   bin = breaks_seq[-1],
-  mean_difference = histograms_agg %>% filter(Condition=="ADULT") %>% pull(prob_mean) - histograms_agg %>% filter(Condition=="OLD") %>% pull(prob_mean),
+  mean_difference = histograms_agg %>% filter(Condition=="ADULT") %>% pull(density_mean) - histograms_agg %>% filter(Condition=="OLD") %>% pull(density_mean),
   bootstrap_mean_difference = apply(delta, 2, mean),  
   ci_low  = apply(delta, 2, quantile, 0.025),
   ci_high = apply(delta, 2, quantile, 0.975)
@@ -382,16 +382,23 @@ ggplot(bootstrap, aes(x = bin, y = mean_difference)) +
   geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.8, alpha=0.8) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_x_continuous(breaks = breaks_seq) +
+  scale_x_continuous(breaks = breaks_seq, ) +
   theme_minimal() +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0)) +
   labs(
     x = "Bin",
-    y = "Bootstrap Mean Difference",
+    y = "Bootstrap Mean Difference in Density",
     title = "Bootstraped Difference with 95% CI per bin",
   )
-
 ```
 
+TO DO: bootstrap para todas las condiciones
+
+## 3.2 Multisample E-statistic (Energy) Test of Equal Distributions
+
+Este test compara si 2
+
+https://www.rdocumentation.org/packages/energy/versions/1.7-12/topics/eqdist.etest
 
 
 
