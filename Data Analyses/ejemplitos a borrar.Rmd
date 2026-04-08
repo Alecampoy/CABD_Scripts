@@ -1,0 +1,46 @@
+---
+title: "Untitled"
+author: "Ale Campoy"
+date: "2026-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r pressure, echo=FALSE}
+# 5 histogramas por grupo, 20 bins cada uno
+A <- matrix(runif(5*20), nrow = 5)
+B <- matrix(runif(5*20), nrow = 5)
+
+X <- rbind(A, B)
+sizes <- c(5, 5)
+
+eqdist.etest(X, sizes, R = 999)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+x <- rnorm(50)
+y <- rnorm(50, mean = 0.5)
+
+cramer.test(x, y)
+```
+
+
+```{r}
+library("vegan")
+
+X <- rbind(A, B)
+group <- factor(rep(c("A","B"), each = 5))
+
+adonis2(X ~ group, method = "euclidean")
+```
+
+

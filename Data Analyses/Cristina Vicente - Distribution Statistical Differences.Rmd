@@ -327,7 +327,7 @@ Este análisis, aunque nos da alguna información e intuición sobre las compara
 
 *Nota: Parte de este apartado lo he generado con la ayuda de Chatgpt, pero solicitando información sobre comparación entre espectros en lugar de histogramas, ya que estas comparaciones se realizan en espectroscopía. La idoneidad de los test sugeridos se ha estudiado independientemente sin IA.*
 
-Realizaré la comparación mediante diferentes métodos, para ello parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente.
+Realizaré la comparación mediante diferentes métodos, para ello parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente. El problema es equivalente a tener una observación que tiene tantas variables como bins, pero hay que tratarlas todas a la vez.
 
 ## 3.1 Bootstrap
 
@@ -474,7 +474,7 @@ Habría que probar este test en más condiciones para ver su diferencia.
 
 ## 3.3 Cramer-Test for multivariate two-sample-problem
 
-El Cramer-von Mises se usa para comprobar si una muestra proviene de una distribución normal. Testea nuestra muestra contra una normal multivariante. Chatgpt lo recomienda erroneamente. Pero encontre el test `cramer.test` que usa una formula similar para 2 comparar muestrasy ver si provienen de la misma distribución.
+El Cramer-von Mises se usa para comprobar si una muestra proviene de una distribución normal. Testea nuestra muestra contra una normal multivariante. Chatgpt lo recomienda erroneamente. Pero encontre el test `cramer.test` que usa una formula similar para 2 comparar muestras y ver si provienen de la misma distribución. Asume que la muestra tiene Nbins dimensiones (cada bin es una dimensión). 
 
 https://www.rdocumentation.org/packages/cramer/versions/0.9-4/topics/cramer.test
 
@@ -510,11 +510,25 @@ cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
 
 Como esperaba, el p-value es muy alto por la similitud de los histogramas.
 
-## 3.4 PERMANOVA
+## 3.4 Permutation Multivariate ANOVA
 
-df
+https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/anova-manova/
+https://www.rdocumentation.org/packages/PERMANOVA/versions/0.2.0/topics/PERMANOVA
+https://www.reddit.com/r/rstats/comments/1micha6/interpreting_permanova_results/?tl=es-419
+https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/permanova/
+
+```{r}
+rnorm(100, mean = 0, sd = 1)
+```
+
+## 3.5 Wasserstain Test
+
+https://www.rdocumentation.org/packages/DataSimilarity/versions/0.3.0/topics/Wasserstein
 
 
+# Conclusión
+
+Hacer tabla sobre la marcha mientras vemos los datos.
 
 
 
