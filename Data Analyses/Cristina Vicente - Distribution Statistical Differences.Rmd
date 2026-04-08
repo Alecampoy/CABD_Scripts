@@ -7,9 +7,10 @@ output: html_notebook
 
 ```{r}
 rm(list = ls())
-library(tidyverse)
+library("tidyverse")
 library("entropy")
 library("energy")
+library("cramer")
 ```
 
 Cargo los datos de los histogramas generados por Cristina.
@@ -480,7 +481,6 @@ https://www.rdocumentation.org/packages/cramer/versions/0.9-4/topics/cramer.test
 - Adult vs Young
 
 ```{r}
-library("cramer")
 x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
 y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
 cramer.test(x, y,  conf.level = 0.95,  replicates = 5000,
@@ -488,16 +488,31 @@ cramer.test(x, y,  conf.level = 0.95,  replicates = 5000,
 )
 ```
 
-Observo que cuando realizo el test multiples veces, el p.value oscila ligeramente. Esto se debe a que el metodo tambien usa bootstraping y la aleatoriedad afecta.
+Observo que cuando realizo el test multiples veces, el p.value oscila ligeramente. Esto se debe a que el metodo tambien usa bootstraping y la aleatoriedad afecta. No veo diferencias con los diferentes métodos montecarlo.
 
 - Adult vs OLD
 
+```{r}
+x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+```
 
+Resultado similar al dado por el Energy-test
 
 - OLD vs Young
 
+```{r}
+x <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+```
+
+Como esperaba, el p-value es muy alto por la similitud de los histogramas.
 
 ## 3.4 PERMANOVA
+
+df
 
 
 
