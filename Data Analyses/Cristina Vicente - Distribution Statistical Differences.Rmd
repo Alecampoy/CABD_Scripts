@@ -11,6 +11,7 @@ library("tidyverse")
 library("entropy")
 library("energy")
 library("cramer")
+library("vegan")
 ```
 
 Cargo los datos de los histogramas generados por Cristina.
@@ -329,6 +330,14 @@ Este análisis, aunque nos da alguna información e intuición sobre las compara
 
 Realizaré la comparación mediante diferentes métodos, para ello parto de los histogramas individuales vectorizados (construidos con el mismo bin y límites) y usando la probabilidad o la density function, construida anteriormente. El problema es equivalente a tener una observación que tiene tantas variables como bins, pero hay que tratarlas todas a la vez.
 
+Para sumarizar al final, voy a crear un DF con todos los p.values por test
+
+```{r}
+Resultados_pvalue <- tibble(Comparacion = c("ADULT vs OLD", "ADULT vs YG", "OLD vs YG"))
+
+```
+
+
 ## 3.1 Bootstrap
 
 El primer método sera hacer un remuestreo bootstraps y calcular la diferencia de las medias bajo un intervalo de confianza.
@@ -461,28 +470,35 @@ eqdist.etest(as.matrix(histograms_wide[,-c(1,2)]), sizes_condition %>% pull(), R
 
 El test arroja un P-value de 0.13, por lo que no descarta la hipotesis nula de que las muestras provienen de diferentes distribuciones, Posiblemente estamos viendo reflejado aqui el sample size. Vamos a comparar los resultados por parejas.
 
-- Adult vs Young
-
-```{r}
-M <- histograms_wide %>% filter(Condition %in% c("ADULT", "YG"))
-sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
-
-eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
-```
-
-Como esperaba, el test falla por poco y se descarta la hipotesis nula de que provienen de la misma distribución con p-value 0.049. Aunque el valor es ajustado y esto hace pensar la potencia del test y la N de nuestro experimento.
-
 - Adult vs Old
 
 ```{r}
 M <- histograms_wide %>% filter(Condition %in% c("ADULT", "OLD"))
 sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
 
-eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "Energy_test"] <- energy_test$p.value
+
+energy_test
+```
+
+Como esperaba, el test falla por poco y se descarta la hipotesis nula de que provienen de la misma distribución con p-value 0.049. Aunque el valor es ajustado y esto hace pensar la potencia del test y la N de nuestro experimento.
+
+- Adult vs Young
+
+```{r}
+M <- histograms_wide %>% filter(Condition %in% c("ADULT", "YG"))
+sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
+
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "Energy_test"] <- energy_test$p.value
+
+energy_test
 ```
 
 La pequeña diferencia entre Old y Young ya se ve reflejada en su comparación con Adult, porque en este caso no podemos descartar la hipotesis nula.
-
 
 - Old vs Young
 
@@ -490,7 +506,11 @@ La pequeña diferencia entre Old y Young ya se ve reflejada en su comparación c
 M <- histograms_wide %>% filter(Condition %in% c("OLD", "YG"))
 sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
 
-eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "Energy_test"] <- energy_test$p.value
+
+energy_test
 ```
 
 Y en este último caso, como se esperaba, el test arroja un resultado claro de no diferencias.
@@ -503,24 +523,34 @@ El Cramer-von Mises se usa para comprobar si una muestra proviene de una distrib
 
 https://www.rdocumentation.org/packages/cramer/versions/0.9-4/topics/cramer.test
 
+- Adult vs Old
+
+```{r}
+x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000,
+            sim = "permutation", # Possible values are "ordinary" (default) for normal Monte-Carlo-bootstrap, "permutation" for a permutation Monte-Carlo-bootstrap. Chatgpt recomienda permutation, pero siento que con este tema se esta inventando tela de cosas.
+)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "cramer_test"] <- cramer_test$p.value
+
+cramer_test
+```
+
+Observo que cuando realizo el test multiples veces, el p.value oscila ligeramente. Esto se debe a que el metodo tambien usa bootstraping y la aleatoriedad afecta. No veo diferencias con los diferentes métodos montecarlo.
+
 - Adult vs Young
 
 ```{r}
 x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
 y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
-cramer.test(x, y,  conf.level = 0.95,  replicates = 5000,
-            sim = "permutation", # Possible values are "ordinary" (default) for normal Monte-Carlo-bootstrap, "permutation" for a permutation Monte-Carlo-bootstrap. Chatgpt recomienda permutation, pero siento que con este tema se esta inventando tela de cosas.
-)
-```
 
-Observo que cuando realizo el test multiples veces, el p.value oscila ligeramente. Esto se debe a que el metodo tambien usa bootstraping y la aleatoriedad afecta. No veo diferencias con los diferentes métodos montecarlo.
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
 
-- Adult vs OLD
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "cramer_test"] <- cramer_test$p.value
 
-```{r}
-x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
-y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
-cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+cramer_test
 ```
 
 Resultado similar al dado por el Energy-test
@@ -528,9 +558,14 @@ Resultado similar al dado por el Energy-test
 - OLD vs Young
 
 ```{r}
-x <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
-y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
-cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+x <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "cramer_test"] <- cramer_test$p.value
+
+cramer_test
 ```
 
 Como esperaba, el p-value es muy alto por la similitud de los histogramas.
@@ -543,12 +578,13 @@ https://www.rdocumentation.org/packages/PERMANOVA/versions/0.2.0/topics/PERMANOV
 https://www.reddit.com/r/rstats/comments/1micha6/interpreting_permanova_results/?tl=es-419
 https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/permanova/
 
-- Adult vs Young
+- Adult vs Old
 
 ```{r}
-x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
-y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+X <- histograms_wide %>% filter(Condition %in% c("YG", "OLD")) %>% select(-ID, -Condition) %>% as.matrix()
+condition <- histograms_wide %>% filter(Condition %in% c("YG", "OLD")) %>% select(Condition) %>% pull()
 
+adonis2(X ~ condition, method = "euclidean", permutations = 9999)
 ```
 
 ## 3.5 Wasserstain Test
