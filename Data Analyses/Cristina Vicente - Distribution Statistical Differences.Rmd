@@ -12,6 +12,8 @@ library("entropy")
 library("energy")
 library("cramer")
 library("vegan")
+library("DataSimilarity")
+library("Ecume")
 ```
 
 Cargo los datos de los histogramas generados por Cristina.
@@ -574,6 +576,7 @@ Como esperaba, el p-value es muy alto por la similitud de los histogramas.
 
 Este test calcula Un estadistico pseudo-F, similar a ANOVA. Establece si hay diferencias entre grupos multivariados. En nuestro caso cada variable independiente sería un bin del histograma y el test calculará la distancia de nuestro histograma al centro de masas (ver ref.). Así es como compara Permanova el estadistico, en lugar de variaciones con respecto a la media (anova) como variaciones respecto al centro de masa -compara la geometría de los espectros en el espacio multivariante-. Podría ser problematico cuando vectores tienen la misma distancia al centro de masas pero diferente forma?. Establece el p-value realizando permutaciones o bootstraping y recalculando el estadistico, estableciendo la probabilidad de encontrar un estadistico resampleado más grande que el observado.
 
+https://www.rdocumentation.org/packages/vegan/versions/2.6-4/topics/adonis
 https://www.rdocumentation.org/packages/PERMANOVA/versions/0.2.0/topics/PERMANOVA
 https://www.reddit.com/r/rstats/comments/1micha6/interpreting_permanova_results/?tl=es-419
 https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/permanova/
@@ -581,20 +584,118 @@ https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/permanova/
 - Adult vs Old
 
 ```{r}
-X <- histograms_wide %>% filter(Condition %in% c("YG", "OLD")) %>% select(-ID, -Condition) %>% as.matrix()
-condition <- histograms_wide %>% filter(Condition %in% c("YG", "OLD")) %>% select(Condition) %>% pull()
+comparison <- c("ADULT", "OLD")
+X <- histograms_wide %>% filter(Condition %in% comparison) %>% select(-ID, -Condition) %>% as.matrix()
+condition <- histograms_wide %>% filter(Condition %in% comparison) %>% select(Condition) %>% pull()
 
-adonis2(X ~ condition, method = "euclidean", permutations = 9999)
+permanova <- adonis2(X ~ condition, method = "euclidean", permutations = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "Permanova"] <- permanova$`Pr(>F)`[1]
+
+permanova
 ```
 
-## 3.5 Wasserstain Test
+Tenemos los p.valor similares a los test anteriores.
+
+- Adult vs Young
+
+```{r}
+comparison <- c("ADULT", "YG")
+X <- histograms_wide %>% filter(Condition %in% comparison) %>% select(-ID, -Condition) %>% as.matrix()
+condition <- histograms_wide %>% filter(Condition %in% comparison) %>% select(Condition) %>% pull()
+
+permanova <- adonis2(X ~ condition, method = "euclidean", permutations = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "Permanova"] <- permanova$`Pr(>F)`[1]
+
+permanova
+```
+
+- Old vs Young
+
+```{r}
+comparison <- c("OLD", "YG")
+X <- histograms_wide %>% filter(Condition %in% comparison) %>% select(-ID, -Condition) %>% as.matrix()
+condition <- histograms_wide %>% filter(Condition %in% comparison) %>% select(Condition) %>% pull()
+
+permanova <- adonis2(X ~ condition, method = "euclidean", permutations = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "Permanova"] <- permanova$`Pr(>F)`[1]
+
+permanova
+```
+
+## 3.5 Wasserstein Test
+
+Literalmente de su descripción, este test calcula la distancia como la cantidad de "masa" que habría que mover para transformar una distribución en otra. Como los anteriores, calcula un p.valor mediante bootstraping.
 
 https://www.rdocumentation.org/packages/DataSimilarity/versions/0.3.0/topics/Wasserstein
+https://medium.com/@mynameisgovind/the-wasserstein-distance-for-dummies-be14162c7c30
+https://lilianweng.github.io/posts/2017-08-20-gan/#what-is-wasserstein-distance
+https://search.r-project.org/CRAN/refmans/twosamples/html/wass_test.html
+
+También recive las distribuciones como un vector. La implementación tiene un problema que requere n=m. Lo ajusto a eso, pero podemos hacer una funcion que realice las permutaciones (según chatgpt). Tiene que recibir probabilidades según chatgpt (comprobar).
+
+- Adult vs Old
+
+```{r}
+histograms_wide <- histograms |>
+  select(ID, Condition, bin, density) |>
+  pivot_wider(names_from = bin, values_from = density) |> 
+  arrange(Condition)
+x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition)
+y <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) 
+
+wasserstein_test <- DataSimilarity::Wasserstein(x[1:5,] , y, n.perm = 100)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "Wasserstein_test"] <- wasserstein_test$p.value
+
+wasserstein_test
+```
+
+
+- Adult vs Young
+
+```{r}
+histograms_wide <- histograms |>
+  select(ID, Condition, bin, prob) |>
+  pivot_wider(names_from = bin, values_from = prob) |> 
+  arrange(Condition)
+x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition)
+y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) 
+
+wasserstein_test <- DataSimilarity::Wasserstein(x[1:5,] , y, n.perm = 999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "Wasserstein_test"] <- wasserstein_test$p.value
+
+wasserstein_test
+```
+
+- OLD vs Young
+
+```{r}
+histograms_wide <- histograms |>
+  select(ID, Condition, bin, density) |>
+  pivot_wider(names_from = bin, values_from = density) |> 
+  arrange(Condition)
+x <- histograms_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition)
+y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) 
+
+wasserstein_test <- DataSimilarity::Wasserstein(x[1:5,] , y, n.perm = 100)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "Wasserstein_test"] <- wasserstein_test$p.value
+
+wasserstein_test
+```
+
+
+
+
 
 
 # Conclusión
 
-Hacer tabla sobre la marcha mientras vemos los datos.
+
 
 
 
