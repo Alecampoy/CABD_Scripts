@@ -357,9 +357,38 @@ bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
 # Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 ```
 
+```{r}
+# Función Bootstrap (versión optimizada)
+bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
+  df_group <- df |> filter(Condition == condition_name)
+  IDs <- unique(df_group$ID)
+  n <- length(IDs)
+  
+  # Pre-computar matriz IDs × bins (una sola vez, fuera del loop)
+  mat <- df_group |>
+    select(ID, bin, density) |>
+    tidyr::pivot_wider(names_from = bin, values_from = density) |>
+    tibble::column_to_rownames("ID") |>
+    as.matrix()
+  
+  # Bootstrap sobre filas de la matriz — sin joins, sin dplyr dentro del loop
+  resampling <- replicate(n_boot, {
+    idx <- sample(nrow(mat), size = n, replace = TRUE)
+    colMeans(mat[idx, , drop = FALSE])
+  })
+  
+  t(resampling)
+}
+```
+
+
 Generando muchas versiones plausibles de la media de tus histogramas originales para crear un intervalo de confianza.
 
 Un IC del 95% significa: Si repitieras el experimento muchas veces, el 95% de los IC contendrían la verdadera diferencia
+
+Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico). Si el intervalo NO incluye 0, puede significar una diferencia significativa.
+
+- Adult vs Old
 
 ```{r}
 bootA <- bootstrap_mean(histograms, "ADULT", 2000)
@@ -374,11 +403,7 @@ bootstrap <- tibble(
   ci_low  = apply(delta, 2, quantile, 0.025),
   ci_high = apply(delta, 2, quantile, 0.975)
 )
-```
 
-Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico). Si el intervalo NO incluye 0, puede significar una diferencia significativa.
-
-```{r}
 # Plot del bootstrap
 ggplot(bootstrap, aes(x = bin, y = mean_difference)) +
   geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
@@ -390,7 +415,7 @@ ggplot(bootstrap, aes(x = bin, y = mean_difference)) +
   labs(
     x = "Bin",
     y = "Bootstrap Mean Difference in Density",
-    title = "Bootstraped Difference with 95% CI per bin",
+    title = "Bootstraped Difference with 95% CI per bin Adult vs Old",
   )
 ```
 
@@ -512,13 +537,18 @@ Como esperaba, el p-value es muy alto por la similitud de los histogramas.
 
 ## 3.4 Permutation Multivariate ANOVA
 
-https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/anova-manova/
+Este test calcula Un estadistico pseudo-F, similar a ANOVA. Establece si hay diferencias entre grupos multivariados. En nuestro caso cada variable independiente sería un bin del histograma y el test calculará la distancia de nuestro histograma al centro de masas (ver ref.). Así es como compara Permanova el estadistico, en lugar de variaciones con respecto a la media (anova) como variaciones respecto al centro de masa -compara la geometría de los espectros en el espacio multivariante-. Podría ser problematico cuando vectores tienen la misma distancia al centro de masas pero diferente forma?. Establece el p-value realizando permutaciones o bootstraping y recalculando el estadistico, estableciendo la probabilidad de encontrar un estadistico resampleado más grande que el observado.
+
 https://www.rdocumentation.org/packages/PERMANOVA/versions/0.2.0/topics/PERMANOVA
 https://www.reddit.com/r/rstats/comments/1micha6/interpreting_permanova_results/?tl=es-419
 https://uw.pressbooks.pub/appliedmultivariatestatistics/chapter/permanova/
 
+- Adult vs Young
+
 ```{r}
-rnorm(100, mean = 0, sd = 1)
+x <- histograms_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+
 ```
 
 ## 3.5 Wasserstain Test
