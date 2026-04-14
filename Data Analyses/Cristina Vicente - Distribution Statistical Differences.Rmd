@@ -17,6 +17,9 @@ library("Ecume")
 library(patchwork)
 library(gridExtra)
 library(grid)
+library("lme4")
+library("lmerTest")
+library("MuMIn")
 ```
 
 Cargo los datos de los histogramas generados por Cristina.
@@ -686,7 +689,7 @@ wasserstein_test
 
 ## 3.6 Linear Mixed-Effects Regression
 
-Se pueden considerar el histograma acumulado como un vector (mejor que el histograma) y aplicar un modelo lineal considerando la variable condición. Pero pienso que sería mejor hacerlo mediante los quantiles, ya que como vemos, la representación por quantiles es más linear en el intervalo y no tenemos que extender el ECDF.
+Se pueden considerar el histograma acumulado como un vector (mejor que el histograma) y aplicar un modelo lineal considerando la variable condición. Pero pienso que sería mejor hacerlo mediante los quantiles, ya que como vemos, la representación por quantiles es más linear en el intervalo y no tenemos que extender el ECDF (Sin llegar a tener una relación lineal).
 
 ### ECFD vs Quantiles 
 
@@ -699,20 +702,21 @@ animal_quantiles <- data_male %>%
     summarise(quant=list(quantile(Area, probs=probs, na.rm=TRUE)), .groups="drop") %>%
     unnest_wider(quant) %>%
     rename_with(~ paste0("Q", probs*100), .cols = -c(Condition, ID))
+
 # Transformación del DF a long y calculo de la media por condición
-quant_long <- animal_quantiles |>
-  pivot_longer(cols = starts_with("Q"), names_to = "quantile", values_to = "value") |>
+animal_quantiles_long <- animal_quantiles |>
+  pivot_longer(cols = starts_with("Q"), names_to = "quantile", values_to = "Area") |>
   mutate(quantile = as.numeric(str_remove(quantile, "Q")))
 
-quant_summary <- quant_long |>
-  summarise(mean = mean(value), sd = sd(value), .by = c(Condition, quantile))
+quant_summary <- animal_quantiles_long |>
+  summarise(mean = mean(Area), sd = sd(Area), .by = c(Condition, quantile))
 ```
 
 
 ```{r fig.height=8, fig.width=8}
 # Plot de los quantiles
 p <- ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
-  geom_line(data = quant_long, aes(y = value, group = interaction(ID, Condition)),
+  geom_line(data = animal_quantiles_long, aes(y = value, group = interaction(ID, Condition)),
             alpha = 0.2, linewidth = 0.3) +
   geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.25, color = NA) +
   geom_line(aes(y = mean), linewidth = 1.1) +
@@ -744,17 +748,61 @@ p / q + plot_layout(heights = c(1, 1))
 ```
 ### LMER
 
-Para comparar, la voy a hacer por parejas del mismo modo que los test anteriores.
+Nota: -según chatgpt-
+- t value indica Cuántos “errores estándar” está el coeficiente lejos de 0
+- df (degrees of freedom) No tienen una definición exacta cerrada
+- el pvalue se calcula como la probabilidad según una distribución t de Studen para esos DF de ser mayor que el estadistico T
+Como los DF no están definido en los LMER, ocurre que se estuman por unos métodos segun el paquete `lmertest`, y son necesarios para el pvalue
+
+Para poder comparar con los modelos anteriores, voy a hacer la comparación por parejas del mismo modo que los test anteriores.
+
+Este modelo no tiene R-Squared para indicar cuanto explica, lo que indica el p-value es si el coeficiente de la intereacción es significativa. 
+
+No es un Test, es un Modelo.
+
+- Adult vs OLD
 
 ```{r}
-model <- lmer(value ~ Sex * quantile + Label, data = animal_long)
+model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "OLD"))))
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
+
 print(summary(model))
-cat("\n--- ANOVA ---\n")
-print(anova(model))
 ```
 
+Pero se puede sacar el R2 con el paquete `MuMin`
 
+```{r}
+r.squaredGLMM(model)
+```
 
+Y vemos que explica bastante. R² marginal → solo efectos fijos - R² condicional → fijos + aleatorios (los aleatorios son los animales)
+
+- Adult vs Young
+
+```{r}
+model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "YG"))))
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
+
+r.squaredGLMM(model)
+
+print(summary(model))
+```
+
+- Old vs Young
+
+```{r}
+model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("OLD", "YG"))))
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
+
+r.squaredGLMM(model)
+
+print(summary(model))
+```
+
+En este caso sigue indicando que la condición es significativa, cuando hasta ahora hemos intuido que Old y Young eran muy parecidas.
 
 # Conclusión
 
@@ -787,34 +835,14 @@ fill_matrix_full <- cbind("white", fill_matrix)
 
 tbl_grob <- tableGrob(Resultados_pvalue, rows = NULL,
                       theme = ttheme_minimal(
-                        base_size = 12,
+                        base_size = 11,
                         core = list(bg_params = list(fill = fill_matrix_full, col = NA))
                       ))
 
 p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
 ```
 
-Ojo: en el archivo 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Discutir con Cristina el tipo de test y las implicaciones con más datos.
 
 
 
