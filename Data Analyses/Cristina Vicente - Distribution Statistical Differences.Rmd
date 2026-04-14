@@ -716,10 +716,10 @@ quant_summary <- animal_quantiles_long |>
 ```{r fig.height=8, fig.width=8}
 # Plot de los quantiles
 p <- ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
-  geom_line(data = animal_quantiles_long, aes(y = value, group = interaction(ID, Condition)),
-            alpha = 0.2, linewidth = 0.3) +
-  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.25, color = NA) +
-  geom_line(aes(y = mean), linewidth = 1.1) +
+  geom_line(data = animal_quantiles_long, aes(y = Area, group = interaction(ID, Condition)),
+            alpha = 0.2, linewidth = 0.4) +
+  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.15, color = NA) +
+  geom_line(aes(y = mean), linewidth = 1.1, alpha = 0.8) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   scale_x_continuous(breaks = seq(5, 95, by = 5)) +
@@ -732,7 +732,7 @@ p <- ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition
   )
 
 q <- ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = Condition)) +
-  geom_ribbon(aes(ymin = cdf_den_mean - cdf_den_sd, ymax = cdf_den_mean + cdf_den_sd), alpha = 0.2, color = NA) +
+  geom_ribbon(aes(ymin = cdf_den_mean - cdf_den_sd, ymax = cdf_den_mean + cdf_den_sd), alpha = 0.15, color = NA) +
   geom_line(linewidth = 0.9) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
@@ -843,9 +843,3 @@ p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
 ```
 
 Discutir con Cristina el tipo de test y las implicaciones con más datos.
-
-
-
-
-
-
