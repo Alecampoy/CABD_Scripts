@@ -686,7 +686,7 @@ wasserstein_test
 
 ## 3.6 Linear Mixed-Effects Regression
 
-Se pueden considerar el histograma acumulado como un vector (mejor que el histograma) y aplicar un modelo lineal considerando la variable condición. Sería similar a hacerlo mediante los quantiles. Lo comparamos
+Se pueden considerar el histograma acumulado como un vector (mejor que el histograma) y aplicar un modelo lineal considerando la variable condición. Pero pienso que sería mejor hacerlo mediante los quantiles, ya que como vemos, la representación por quantiles es más linear en el intervalo y no tenemos que extender el ECDF.
 
 ### ECFD vs Quantiles 
 
@@ -706,9 +706,12 @@ quant_long <- animal_quantiles |>
 
 quant_summary <- quant_long |>
   summarise(mean = mean(value), sd = sd(value), .by = c(Condition, quantile))
+```
 
+
+```{r fig.height=8, fig.width=8}
 # Plot de los quantiles
-ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
+p <- ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
   geom_line(data = quant_long, aes(y = value, group = interaction(ID, Condition)),
             alpha = 0.2, linewidth = 0.3) +
   geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.25, color = NA) +
@@ -723,11 +726,8 @@ ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
     title = "Quantile values by Condition",
     color = "Condition", fill = "Condition"
   )
-```
 
-
-```{r}
-ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = Condition)) +
+q <- ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = Condition)) +
   geom_ribbon(aes(ymin = cdf_den_mean - cdf_den_sd, ymax = cdf_den_mean + cdf_den_sd), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.9) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
@@ -740,8 +740,17 @@ ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = 
     color = "Condition", fill = "Condition"
   )
 
+p / q + plot_layout(heights = c(1, 1))
+```
+### LMER
 
+Para comparar, la voy a hacer por parejas del mismo modo que los test anteriores.
 
+```{r}
+model <- lmer(value ~ Sex * quantile + Label, data = animal_long)
+print(summary(model))
+cat("\n--- ANOVA ---\n")
+print(anova(model))
 ```
 
 
