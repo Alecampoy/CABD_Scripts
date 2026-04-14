@@ -347,35 +347,13 @@ El primer método sera hacer un remuestreo bootstraps y calcular la diferencia d
 Un bootstrap consiste en generar multiples veces (>1000) un remuestreo aleatorio de los datos de mi muestra para con ello generar un intervalo de confianza sobre cuanto puede variar la diferencia de las medias si repitieramos el experimento. Es algo análogo a un test de probabilidad. Lo hago considerando los histogramas normalizados por densidad (Integral densidad = 1).
 
 ```{r}
-# Funcion Bootstrap
-bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
-  df_group <- df %>% filter(Condition == condition_name)
-  IDs <- unique(df_group$ID)
-  n <- length(IDs)
-  # samplear histogramas completos
-  resampling <- replicate(n_boot, {
-    sampled_ids <- sample(IDs, size = n, replace = TRUE)
-    df_boot <- data.frame(ID = sampled_ids) %>% left_join(df_group, by = "ID", relationship = "many-to-many")
-    # promedio por bin
-    df_boot %>%
-      group_by(bin) %>%
-      summarise(bootstrap_density = mean(density), .groups = "drop") %>%
-      arrange(bin) %>%
-      pull(bootstrap_density)
-    })
-  t(resampling)  # transpose
-}
-# Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
-```
-
-```{r}
 # Función Bootstrap (versión optimizada)
 bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
   df_group <- df |> filter(Condition == condition_name)
   IDs <- unique(df_group$ID)
   n <- length(IDs)
   
-  # Pre-computar matriz IDs × bins (una sola vez, fuera del loop)
+  # Pre-computar la matriz IDs × bins (una sola vez, fuera del loop)
   mat <- df_group |>
     select(ID, bin, density) |>
     tidyr::pivot_wider(names_from = bin, values_from = density) |>
@@ -384,11 +362,11 @@ bootstrap_mean <- function(df, condition_name, n_boot = 1000) {
   
   # Bootstrap sobre filas de la matriz — sin joins, sin dplyr dentro del loop
   resampling <- replicate(n_boot, {
-    idx <- sample(nrow(mat), size = n, replace = TRUE)
-    colMeans(mat[idx, , drop = FALSE])
+    sampled_ids <- sample(nrow(mat), size = n, replace = TRUE)
+    colMeans(mat[sampled_ids, , drop = FALSE]) # drop = FALSE: fuerza que el resultado siga siendo matriz
   })
-  
   t(resampling)
+  # Devuelve una matriz donde cada fila es un resampleado y las columnas son los bins
 }
 ```
 
@@ -399,38 +377,53 @@ Un IC del 95% significa: Si repitieras el experimento muchas veces, el 95% de lo
 
 Si el IC95% de Δ(λ) no contiene 0, hay diferencia significativa en esa región espectral (por ejemplo alrededor de un pico). Si el intervalo NO incluye 0, puede significar una diferencia significativa.
 
-- Adult vs Old
 
-```{r}
-bootA <- bootstrap_mean(histograms, "ADULT", 2000)
-bootB <- bootstrap_mean(histograms, "OLD", 2000)
+```{r fig.height=8, fig.width=6}
+conditions_agg <- levels(droplevels(histograms_agg$Condition))
+pairs_agg <- combn(conditions_agg, 2, simplify = FALSE)
 
-delta <- bootA - bootB
-
-bootstrap <- tibble(
-  bin = breaks_seq[-1],
-  mean_difference = histograms_agg %>% filter(Condition=="ADULT") %>% pull(density_mean) - histograms_agg %>% filter(Condition=="OLD") %>% pull(density_mean),
-  bootstrap_mean_difference = apply(delta, 2, mean),  
-  ci_low  = apply(delta, 2, quantile, 0.025),
-  ci_high = apply(delta, 2, quantile, 0.975)
-)
-
-# Plot del bootstrap
-ggplot(bootstrap, aes(x = bin, y = mean_difference)) +
-  geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
-  geom_line(linewidth = 0.8, alpha=0.8) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  scale_x_continuous(breaks = breaks_seq, ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = -30, hjust = 0)) +
-  labs(
-    x = "Bin",
-    y = "Bootstrap Mean Difference in Density",
-    title = "Bootstraped Difference with 95% CI per bin Adult vs Old",
+bootstrap_all <- map(pairs_agg, function(pair) {
+  cA <- pair[1]; 
+  cB <- pair[2]
+  bootA <- bootstrap_mean(histograms, cA, 1000)
+  bootB <- bootstrap_mean(histograms, cB, 1000)
+  delta <- bootA - bootB
+  
+  # Calculo la diferencia de las density mean reales para comparar en el bootstrap, tambien se puede usar la media bootstrap, que será muy similar
+  densityA <- histograms_agg[histograms_agg$Condition == cA, "density_mean", drop = TRUE]
+  densityB <- histograms_agg[histograms_agg$Condition == cB, "density_mean", drop = TRUE]
+  
+  tibble(
+    pair            = paste(cA, "vs", cB),
+    bin             = breaks_seq[-1],
+    mean_difference = densityA - densityB,
+    bootstrap_mean_difference = apply(delta, 2, mean),  
+    ci_low          = apply(delta, 2, quantile, 0.025),
+    ci_high         = apply(delta, 2, quantile, 0.975)
   )
+}) |> bind_rows()
+
+ggplot(bootstrap_all, aes(x = bin, y = mean_difference, color = pair, fill = pair)) +
+  geom_ribbon(aes(ymin = ci_low, ymax = ci_high), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_continuous(breaks = breaks_seq) +
+  facet_wrap(~ pair, ncol = 1) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = -30, hjust = 0),
+    legend.position = "none"
+  ) +
+  labs(
+    x     = "Bin",
+    y     = "Bootstrap Mean Difference in Density",
+    title = "Bootstrapped Difference with 95% CI per bin"
+  )
+
 ```
 
-TO DO: bootstrap para todas las condiciones
+
+
 
 ## 3.2 Multisample E-statistic (Energy) Test of Equal Distributions
 
@@ -689,11 +682,24 @@ wasserstein_test
 ```
 
 
-
-
-
-
 # Conclusión
+
+```{r}
+# Create line plot with SD as ribbon
+ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha=0.8) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x = "Bin",
+    y = "Mean Density (± SD)",
+    title = "Average Bin Counts by Sex and Condition",
+    color = "Sex",
+    fill = "Sex"
+  )
+```
 
 
 
