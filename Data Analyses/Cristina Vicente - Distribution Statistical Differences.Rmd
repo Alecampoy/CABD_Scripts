@@ -14,6 +14,9 @@ library("cramer")
 library("vegan")
 library("DataSimilarity")
 library("Ecume")
+library(patchwork)
+library(gridExtra)
+library(grid)
 ```
 
 Cargo los datos de los histogramas generados por Cristina.
@@ -278,7 +281,7 @@ Se podría hacer un análisis sobre la matriz de distancias entre todas las dist
 La unidad experimental es el animal, y cada uno tiene multiples observaciones del Area. Para obtener un p-valor válido, ejecutamos el KS-test entre cada par de animales, lo que otorga un p-valor a la comparación entre las distribuciones de probabilidad individuales. Despues resumimos los resultados. Con esto queremos ver la variabilidad del KS.test entre nuestros animales.
 
 ```{r}
-data_male <- data |> filter(Sex == "M")
+data_male <- data |> filter(Sex == "M") %>% select(-Sex)
 conditions_raw <- levels(droplevels(data_male$Condition))
 
 # Crear todas las combinaciones de condiciones (entre y dentro)
@@ -681,27 +684,108 @@ Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "Wasserstein_test"
 wasserstein_test
 ```
 
+## 3.6 Linear Mixed-Effects Regression
 
-# Conclusión
+Se pueden considerar el histograma acumulado como un vector (mejor que el histograma) y aplicar un modelo lineal considerando la variable condición. Sería similar a hacerlo mediante los quantiles. Lo comparamos
+
+### ECFD vs Quantiles 
 
 ```{r}
-# Create line plot with SD as ribbon
-ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
-  geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
-  geom_line(linewidth = 0.8, alpha=0.8) +
-  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
-  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+# probabilidad para los quantiles
+probs <- seq(0.05, 0.95, by=0.05)
+# Cuantiles por animal
+animal_quantiles <- data_male %>%
+    group_by(Condition, ID) %>%
+    summarise(quant=list(quantile(Area, probs=probs, na.rm=TRUE)), .groups="drop") %>%
+    unnest_wider(quant) %>%
+    rename_with(~ paste0("Q", probs*100), .cols = -c(Condition, ID))
+# Transformación del DF a long y calculo de la media por condición
+quant_long <- animal_quantiles |>
+  pivot_longer(cols = starts_with("Q"), names_to = "quantile", values_to = "value") |>
+  mutate(quantile = as.numeric(str_remove(quantile, "Q")))
+
+quant_summary <- quant_long |>
+  summarise(mean = mean(value), sd = sd(value), .by = c(Condition, quantile))
+
+# Plot de los quantiles
+ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
+  geom_line(data = quant_long, aes(y = value, group = interaction(ID, Condition)),
+            alpha = 0.2, linewidth = 0.3) +
+  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.25, color = NA) +
+  geom_line(aes(y = mean), linewidth = 1.1) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
+  scale_x_continuous(breaks = seq(5, 95, by = 5)) +
   theme_minimal() +
   labs(
-    x = "Bin",
-    y = "Mean Density (± SD)",
-    title = "Average Bin Counts by Sex and Condition",
-    color = "Sex",
-    fill = "Sex"
+    x = "Quantile (%)",
+    y = "Value (± SD)",
+    title = "Quantile values by Condition",
+    color = "Condition", fill = "Condition"
   )
 ```
 
 
+```{r}
+ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = cdf_den_mean - cdf_den_sd, ymax = cdf_den_mean + cdf_den_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.9) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x     = "Fiber Area (bin)",
+    y     = "Cumulative Density (± SD)",
+    title = "CDF por Condición (Males)",
+    color = "Condition", fill = "Condition"
+  )
+
+
+
+```
+
+
+
+
+# Conclusión
+
+Observando con detalle los histogramas, vemos que ADULT difiere de los otros dos que son más similares entre sí, pero además la dispersión de OLD es algo menor que la de YOUNG en algunos tramos. Represento ahora 2 desviaciones estandar para observar bien cuanta superposición hay con los datos
+
+```{r fig.height=7, fig.width=7}
+# Plot densidades medias por condicion
+p <- ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = density_mean - 2*density_sd, ymax = density_mean + 2*density_sd), alpha = 0.2, color = NA) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
+  scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
+  theme_minimal() +
+  labs(
+    x = "Bin",
+    y = "Mean Density (± SD)",
+    title = "Average Bin Counts by Condition",
+    color = "Condition", fill = "Condition"
+  )
+
+# Tabla de p-values con celdas significativas en rojo
+Resultados_pvalue <- Resultados_pvalue |>
+  mutate(across(where(is.numeric), ~round(., 3)))
+
+fill_matrix <- apply(Resultados_pvalue[, -1], c(1, 2), function(v) {
+  if (!is.na(v) && v <= 0.05) "#FFCCCC" else "white"
+})
+
+fill_matrix_full <- cbind("white", fill_matrix)
+
+tbl_grob <- tableGrob(Resultados_pvalue, rows = NULL,
+                      theme = ttheme_minimal(
+                        base_size = 12,
+                        core = list(bg_params = list(fill = fill_matrix_full, col = NA))
+                      ))
+
+p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
+```
+
+Ojo: en el archivo 
 
 
 
