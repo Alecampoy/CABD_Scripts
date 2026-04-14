@@ -19,17 +19,12 @@ htmlcov/
 *.png
 *.so
 *.tfevents.*
+.Rhistory
 config.json
 thresholds.json
 examples/**/data
 Data Analyses/Cristina Vicente - Distribution Statistical Differences.nb.html
 Data Analyses/.positai/settings.json
-Data Analyses/.positai/settings.json
-Data Analyses/.positai/settings.json
-Data Analyses/.positai/settings.json
-Data Analyses/.Rhistory
-Data Analyses/.Rhistory
 Data Analyses/.Rhistory
 Data Analyses/.Rhistory
 Data Analyses/pandoc20d01621ad4.nb.html
-Data Analyses/.Rhistory
