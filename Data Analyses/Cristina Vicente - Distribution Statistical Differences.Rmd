@@ -32,7 +32,7 @@ head(data)
 
 Genero las categorias y el DF relevante
 ```{r}
-data <- data %>% select(ID, Sex, Condition, Genotype, Area) %>% mutate(across(-Area, as.factor))
+data <- data %>% select(ID, Sex, Condition, Genotype, MinFeret) %>% mutate(across(-MinFeret, as.factor))
 ```
 
 # 1. Exploración de los datos
@@ -48,12 +48,12 @@ data <- data %>% select(-Genotype)
 data %>% select(ID, Sex, Condition) %>% distinct() %>% select(Sex, Condition) %>% table()
 ```
 
-Podemos generar un gráfico para ver las distribuciones del Area para cada elemento ID. En lugar de un histograma lo hago como lineas.
+Podemos generar un gráfico para ver las distribuciones del MinFeret para cada elemento ID. En lugar de un histograma lo hago como lineas.
 
 Histograms (geom_histogram()) display the counts with bars; frequency polygons (geom_freqpoly()) display the counts with lines
 
 ```{r}
-ggplot(data, aes(x = Area, color = ID, group =  ID)) +
+ggplot(data, aes(x = MinFeret, color = ID, group =  ID)) +
   geom_freqpoly(bins = 20, alpha = 0.6) +
   facet_grid(Sex ~ Condition) +
   scale_color_viridis_d(option = "rainbow") +  # o "rainbow", "hue"
@@ -67,13 +67,13 @@ Genero los histogramas como vectores y los uno en un DF. Para el bin, considero 
 
 ```{r}
 # Histogramas
-breaks_seq <- seq(0, ceiling(max(data$Area)/1000)*1000, length.out = 21)
+breaks_seq <- seq(0, ceiling(max(data$MinFeret)), length.out = 21)
 
 histograms <- data |>
   nest(data = -c(ID, Sex, Condition)) |>
   mutate(
     histogram = map(data, ~{
-      h <- hist(as.numeric(.x$Area), breaks = breaks_seq, plot = FALSE) # asi calculo el histograma como densidad para normalizar por el N de cada individuo
+      h <- hist(as.numeric(.x$MinFeret), breaks = breaks_seq, plot = FALSE) # asi calculo el histograma como densidad para normalizar por el N de cada individuo
       tibble(
         bin = h$breaks[-1],
         counts = h$counts,
@@ -107,7 +107,7 @@ Represento los histogramas de la agregación, y representando su dispersión usa
 ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
   geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
   geom_line(linewidth = 0.8, alpha=0.8) +
-  facet_wrap(~Sex) +
+  #facet_wrap(~Sex) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   theme_minimal() +
@@ -161,7 +161,7 @@ ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fill = 
   scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   theme_minimal() +
   labs(
-    x     = "Fiber Area (bin)",
+    x     = "Fiber MinFeret (bin)",
     y     = "Cumulative Density (± SD)",
     title = "CDF por Condición (Males)",
     color = "Condition", fill = "Condition"
@@ -256,8 +256,8 @@ El test de Kolmogorov-Smirnov (KS) compara dos distribuciones acumuladas (CDF) y
 
 *Notas:*
 
-- La entrada de la función KS.test deber ser un set de datos -e.g. todos los valores del area-, y no acepta como entrada una función de distribucion o una CDF, por lo que no podemos introducirlos al test al agregar las funciones de probabilidad o los histogramas. *Por este motivo no obtendremos un p-value*.
-- Hacer un pooling -introducir todas las areas de las fibras conjuntamente para cada condicion- sería pseudoreplication. Por lo que este test no sería adecuado.
+- La entrada de la función KS.test deber ser un set de datos -e.g. todos los valores del MinFeret-, y no acepta como entrada una función de distribucion o una CDF, por lo que no podemos introducirlos al test al agregar las funciones de probabilidad o los histogramas. *Por este motivo no obtendremos un p-value*.
+- Hacer un pooling -introducir todas las MinFerets de las fibras conjuntamente para cada condicion- sería pseudoreplication. Por lo que este test no sería adecuado.
 - Sí que puede calcularse el estadistico D -el cual cuantifica la separación max entre distribuciones- del test sobre las CDF medias, arrojando un resultado similar a la KL-divergende. La diferencia radica en que KL tiene en cuenta toda la distribución, pero KS solo el máximo de separación en la ECDF, lo cual es solo un punto y es su principal crítica.
 
 ```{r}
@@ -281,7 +281,7 @@ Se podría hacer un análisis sobre la matriz de distancias entre todas las dist
 
 ## 2.3 KS-Test entre histogramas por individuos
 
-La unidad experimental es el animal, y cada uno tiene multiples observaciones del Area. Para obtener un p-valor válido, ejecutamos el KS-test entre cada par de animales, lo que otorga un p-valor a la comparación entre las distribuciones de probabilidad individuales. Despues resumimos los resultados. Con esto queremos ver la variabilidad del KS.test entre nuestros animales.
+La unidad experimental es el animal, y cada uno tiene multiples observaciones del MinFeret. Para obtener un p-valor válido, ejecutamos el KS-test entre cada par de animales, lo que otorga un p-valor a la comparación entre las distribuciones de probabilidad individuales. Despues resumimos los resultados. Con esto queremos ver la variabilidad del KS.test entre nuestros animales.
 
 ```{r}
 data_male <- data |> filter(Sex == "M") %>% select(-Sex)
@@ -300,9 +300,9 @@ ks_results <- purrr::map_dfr(all_comparisons, \(pair) {
   
   tidyr::expand_grid(id_A = unique(data_A$ID), id_B = unique(data_B$ID)) |>
     pmap_dfr(\(id_A, id_B) {
-      area_A <- data_A |> filter(ID == id_A) |> pull(Area)
-      area_B <- data_B |> filter(ID == id_B) |> pull(Area)
-      test <- suppressWarnings(ks.test(area_A, area_B))
+      MinFeret_A <- data_A |> filter(ID == id_A) |> pull(MinFeret)
+      MinFeret_B <- data_B |> filter(ID == id_B) |> pull(MinFeret)
+      test <- suppressWarnings(ks.test(MinFeret_A, MinFeret_B))
       tibble(
         comparison = paste(pair[1], "vs", pair[2]),
         id_A = id_A, id_B = id_B,
@@ -469,7 +469,7 @@ eqdist.etest(as.matrix(histograms_wide[,-c(1,2)]), sizes_condition %>% pull(), R
 
 ```
 
-El test arroja un P-value de 0.13, por lo que no descarta la hipotesis nula de que las muestras provienen de diferentes distribuciones, Posiblemente estamos viendo reflejado aqui el sample size. Vamos a comparar los resultados por parejas.
+El test arroja un P-value de 0.145, por lo que no descarta la hipotesis nula de que las muestras provienen de diferentes distribuciones, Posiblemente estamos viendo reflejado aqui el sample size. Vamos a comparar los resultados por parejas.
 
 - Adult vs Old
 
@@ -516,7 +516,7 @@ energy_test
 
 Y en este último caso, como se esperaba, el test arroja un resultado claro de no diferencias.
 
-Habría que probar este test en más condiciones para ver su diferencia.
+Habría que probar este test en más condiciones para ver su diferencia. Probar el test sobre las eqdf y ver que se estan comparando bien los huistogramas como vectores o funciones de distribución
 
 ## 3.3 Cramer-Test for multivariate two-sample-problem
 
@@ -699,27 +699,27 @@ probs <- seq(0.05, 0.95, by=0.05)
 # Cuantiles por animal
 animal_quantiles <- data_male %>%
     group_by(Condition, ID) %>%
-    summarise(quant=list(quantile(Area, probs=probs, na.rm=TRUE)), .groups="drop") %>%
+    summarise(quant=list(quantile(MinFeret, probs=probs, na.rm=TRUE)), .groups="drop") %>%
     unnest_wider(quant) %>%
     rename_with(~ paste0("Q", probs*100), .cols = -c(Condition, ID))
 
 # Transformación del DF a long y calculo de la media por condición
 animal_quantiles_long <- animal_quantiles |>
-  pivot_longer(cols = starts_with("Q"), names_to = "quantile", values_to = "Area") |>
+  pivot_longer(cols = starts_with("Q"), names_to = "quantile", values_to = "MinFeret") |>
   mutate(quantile = as.numeric(str_remove(quantile, "Q")))
 
 quant_summary <- animal_quantiles_long |>
-  summarise(mean = mean(Area), sd = sd(Area), .by = c(Condition, quantile))
+  summarise(mean = mean(MinFeret), sd = sd(MinFeret), .by = c(Condition, quantile))
 ```
 
 
 ```{r fig.height=8, fig.width=8}
 # Plot de los quantiles
 p <- ggplot(quant_summary, aes(x = quantile, color = Condition, fill = Condition)) +
-  geom_line(data = animal_quantiles_long, aes(y = Area, group = interaction(ID, Condition)),
-            alpha = 0.2, linewidth = 0.4) +
-  geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd), alpha = 0.15, color = NA) +
-  geom_line(aes(y = mean), linewidth = 1.1, alpha = 0.8) +
+  geom_line(data = animal_quantiles_long, aes(y = MinFeret, group = interaction(ID, Condition)),
+            alpha = 0.3, linewidth = 0.4) +
+  geom_ribbon(aes(ymin = mean - 2*sd, ymax = mean + 2*sd), alpha = 0.1, color = NA) +
+  geom_line(aes(y = mean), linewidth = 1.1, alpha = 0.7) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   scale_x_continuous(breaks = seq(5, 95, by = 5)) +
@@ -738,7 +738,7 @@ q <- ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fi
   scale_fill_manual(values  = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   theme_minimal() +
   labs(
-    x     = "Fiber Area (bin)",
+    x     = "Fiber MinFeret (bin)",
     y     = "Cumulative Density (± SD)",
     title = "CDF por Condición (Males)",
     color = "Condition", fill = "Condition"
@@ -746,6 +746,7 @@ q <- ggplot(histograms_agg, aes(x = bin, y = cdf_den_mean, color = Condition, fi
 
 p / q + plot_layout(heights = c(1, 1))
 ```
+
 ### LMER
 
 Nota: -según chatgpt-
@@ -763,7 +764,7 @@ No es un Test, es un Modelo.
 - Adult vs OLD
 
 ```{r}
-model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "OLD"))))
+model <- lmer(MinFeret ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "OLD"))))
 
 Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
 
@@ -781,7 +782,7 @@ Y vemos que explica bastante. R² marginal → solo efectos fijos - R² condicio
 - Adult vs Young
 
 ```{r}
-model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "YG"))))
+model <- lmer(MinFeret ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("ADULT", "YG"))))
 
 Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
 
@@ -793,7 +794,7 @@ print(summary(model))
 - Old vs Young
 
 ```{r}
-model <- lmer(Area ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("OLD", "YG"))))
+model <- lmer(MinFeret ~ Condition * quantile + (1 | ID), data = (animal_quantiles_long %>% filter(Condition %in% c("OLD", "YG"))))
 
 Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "LMER"] <- summary(model)$coefficients[4, "Pr(>|t|)"]
 
@@ -842,4 +843,4 @@ tbl_grob <- tableGrob(Resultados_pvalue, rows = NULL,
 p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
 ```
 
-Discutir con Cristina el tipo de test y las implicaciones con más datos.
+Pintaría los histogramas con las lineas del mismo modo que está pintada la gráfica de los quantiles, poniendo la sombra ribbon entre el valor min y max (añadir min-max al calculo de las agregaciones)
