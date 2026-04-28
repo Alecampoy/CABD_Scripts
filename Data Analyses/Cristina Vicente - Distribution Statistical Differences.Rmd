@@ -948,3 +948,41 @@ p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
 ```
 
 En esta gráfica se resume de manera apropiada una representación adecuada (se pueden quitar las lineas finas o cambiar el min-max por la sd) junto con una tabla que sumariza los resutados de los test.
+
+TO DO: Se puede hacer un equidis.test pero usando la distancia wasserstein en lugar de la euclidea
+```{r}
+library(energy)
+library(transport)
+
+# Assume:
+# hists_A: list of 5 probability vectors
+# hists_B: list of 6 probability vectors
+# bin_centers: numeric vector of bin locations
+
+all_hists <- c(hists_A, hists_B)
+n <- length(all_hists)
+
+# 1. Compute pairwise Wasserstein distance matrix
+D <- matrix(0, n, n)
+for (i in 1:(n - 1)) {
+  for (j in (i + 1):n) {
+    d <- wasserstein1d(
+      bin_centers, bin_centers,
+      wa = all_hists[[i]], wb = all_hists[[j]]
+    )
+    D[i, j] <- d
+    D[j, i] <- d
+  }
+}
+
+# 2. Energy test on the distance matrix
+group <- factor(c(rep("A", length(hists_A)), rep("B", length(hists_B))))
+
+library(energy)
+
+# eqdist.etest wants the raw data or a distance matrix
+# Pass the distance matrix as if it were data, using the sizes of each group
+result <- eqdist.etest(D, sizes = c(length(hists_A), length(hists_B)), R = 999)
+result$p.value
+```
+
