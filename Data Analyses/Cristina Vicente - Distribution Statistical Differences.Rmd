@@ -91,6 +91,8 @@ histograms_agg <- histograms |>
     density_mean = mean(density, na.rm = FALSE),
     density_sd = sd(density, na.rm = FALSE),
     density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    density_min = min(density),
+    density_max = max(density),
     prob_mean = mean(prob, na.rm = FALSE),
     prob_sd = sd(prob, na.rm = FALSE),
     prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
@@ -104,10 +106,12 @@ Represento los histogramas de la agregación, y representando su dispersión usa
 
 ```{r}
 # Create line plot with SD as ribbon
-ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
+ggplot(histograms_agg, aes(x = bin, color = Condition, fill = Condition)) +
+  geom_line(data = histograms, aes(y = density, group = interaction(ID, Condition)),
+            alpha = 0.3, linewidth = 0.3) +
   geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) +
-  geom_line(linewidth = 0.8, alpha=0.8) +
-  #facet_wrap(~Sex) +
+  geom_line(aes(y = density_mean), linewidth = 0.8, alpha = 0.7) +
+  facet_wrap(~Sex) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "#377EB8", "YG" = "#4DAF4A")) +
   theme_minimal() +
@@ -138,6 +142,8 @@ histograms_agg <- histograms |>
     density_mean = mean(density, na.rm = FALSE),
     density_sd = sd(density, na.rm = FALSE),
     density_mse = sd(density, na.rm = FALSE)/sqrt(n()),
+    density_min = min(density),
+    density_max = max(density),
     prob_mean = mean(prob, na.rm = FALSE),
     prob_sd = sd(prob, na.rm = FALSE),
     prob_mse = sd(prob, na.rm = FALSE)/sqrt(n()),
@@ -435,14 +441,16 @@ ggplot(bootstrap_all, aes(x = bin, y = mean_difference, color = pair, fill = pai
 
 Este test compara si 2 vectores (observaciones) provienen de 2 distribuciones independientes, es decir si ambos conjuntos X,Y provienen de la misma distribución multivariante.
 
+*Ojo, en este caso (y en los de más adelante) se considera el histograma como una observacion n-dimensional. Cada dimension es un bin. Por lo que la distribución se refiere al valor de cada muestra en los bin, pero se considera el bin entero al ser un test multivariante y usar la distancia euclidea de toda la muestra vs toda la muestra.*
+
 refs.
 https://www.rdocumentation.org/packages/energy/versions/1.7-12/topics/eqdist.etest
 https://es.wikipedia.org/wiki/Distancia_de_energia
 Szekely, G. J. and Rizzo, M. L. (2004) Testing for Equal Distributions in High Dimension, InterStat, November (5).
 
-Hasta donde he entendido, el test calcula la energía (métrica relacionada con la distancia entre distribuciones, ver formula*) entre los dos grupos de las distribuciones (es valido para más grupos). Siendo 0 para muestras de identicas distribuciones. Para el cálculo de un p-valor realiza también bootstrap (sin entrar en detalles) y lo compara con lo observado. Los p.value por permutación son la probabilidad de que en un remuestreo el estadistico sea mayor/menor que el observado.
+Hasta donde he entendido, el test calcula la energía (métrica relacionada con la distancia entre distribuciones, ver formula*) entre los dos grupos de las distribuciones (es valido para más grupos). Siendo 0 para muestras de identicas distribuciones. Para el cálculo de un p-valor realiza también bootstrap (sin entrar en detalles) y lo compara con lo observado. Los p.value por permutación son la probabilidad de que en un remuestreo el estadistico sea mayor/menor que el observado. En la formula se mide la distancia entre grupos menos la dispersión dentro de un mismo grupo/condición.
 
-En la formula se mide la distancia entre grupos menos la dispersión dentro de un mismo grupo/condición
+La hipotesis nula es que las distribuciones son la misma.
 
 ```{r}
 # The statistic is computed from the original pooled samples, stacked in matrix x where each row is a multivariate observation, or the corresponding distance matrix. The first sizes[1] rows of x are the first sample, the next sizes[2] rows of x are the second sample, etc. 
@@ -469,7 +477,7 @@ eqdist.etest(as.matrix(histograms_wide[,-c(1,2)]), sizes_condition %>% pull(), R
 
 ```
 
-El test arroja un P-value de 0.145, por lo que no descarta la hipotesis nula de que las muestras provienen de diferentes distribuciones, Posiblemente estamos viendo reflejado aqui el sample size. Vamos a comparar los resultados por parejas.
+El test arroja un P-value de 0.145, por lo que no descarta la hipotesis nula de que las muestras provienen de diferentes distribuciones, Posiblemente estamos viendo reflejado aqui el sample size y que estan todas las muestras incluidas a la vez; sería equivalente a un anova. Vamos a comparar los resultados por parejas.
 
 - Adult vs Old
 
@@ -484,7 +492,7 @@ Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "Energy_test"] 
 energy_test
 ```
 
-Como esperaba, el test falla por poco y se descarta la hipotesis nula de que provienen de la misma distribución con p-value 0.049. Aunque el valor es ajustado y esto hace pensar la potencia del test y la N de nuestro experimento.
+No parece que haya diferencia entre Adult y Old, pues no se descarta la hipotesis nula, aunque repitiendo el test muchas veces, el resultado siempre es p-value < 0.1, lo que indicaria un 10%
 
 - Adult vs Young
 
@@ -499,7 +507,7 @@ Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "Energy_test"] <
 energy_test
 ```
 
-La pequeña diferencia entre Old y Young ya se ve reflejada en su comparación con Adult, porque en este caso no podemos descartar la hipotesis nula.
+Como esperaba, el test ahora si falla y se descarta la hipotesis nula de que provienen de la misma distribución con p-value 0.049. Aunque el valor es ajustado y esto hace pensar la potencia del test y la N de nuestro experimento.
 
 - Old vs Young
 
@@ -517,6 +525,58 @@ energy_test
 Y en este último caso, como se esperaba, el test arroja un resultado claro de no diferencias.
 
 Habría que probar este test en más condiciones para ver su diferencia. Probar el test sobre las eqdf y ver que se estan comparando bien los huistogramas como vectores o funciones de distribución
+
+### Energy test para la distribución acumulada
+
+Como estamos testeando una distribución -histograma- que hemos construido nosotros primeramente y considerado como una observación multivariante, podemos hacer lo mismo pero sobre el ecdf, esperando que el resultado sea similar
+
+```{r}
+histograms_cumulative_wide <- histograms |>
+  select(ID, Condition, bin, cdf_density) |>
+  pivot_wider(names_from = bin, values_from = cdf_density) |> 
+  arrange(Condition)
+```
+
+- Adult vs Old
+
+```{r}
+M <- histograms_cumulative_wide %>% filter(Condition %in% c("ADULT", "OLD"))
+sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
+
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "Energy_test_ecdf"] <- energy_test$p.value
+
+energy_test
+```
+
+- Adult vs Young
+
+```{r}
+M <- histograms_cumulative_wide %>% filter(Condition %in% c("ADULT", "YG"))
+sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
+
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "Energy_test_ecdf"] <- energy_test$p.value
+
+energy_test
+```
+
+- Old vs Young
+
+```{r}
+M <- histograms_cumulative_wide %>% filter(Condition %in% c("OLD", "YG"))
+sizes_condition <- M %>% group_by(Condition) %>% summarise(n()) 
+
+energy_test <- eqdist.etest(as.matrix(M[,-c(1,2)]), sizes_condition %>% pull(), R = 9999)
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "Energy_test_ecdf"] <- energy_test$p.value
+
+energy_test
+```
+
+Como se esperaba, efectivamente son los resultados los mismo independientemente de si se usa el histograma o la culative distribution function
 
 ## 3.3 Cramer-Test for multivariate two-sample-problem
 
@@ -570,6 +630,47 @@ cramer_test
 ```
 
 Como esperaba, el p-value es muy alto por la similitud de los histogramas.
+
+Creo que el estadistico de este test es muy similar al energy test, por lo que los resultados soy similares.
+
+### Cramer-Test para la distribución acumulada
+
+Del mismo modo que me surgió la duda de el uso de la distribución acumulada para el energy test, lo compruebo para el Cramer-test
+
+- Adult vs Old
+
+```{r}
+x <- histograms_cumulative_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_cumulative_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000,
+            sim = "permutation", # Possible values are "ordinary" (default) for normal Monte-Carlo-bootstrap, "permutation" for a permutation Monte-Carlo-bootstrap. Chatgpt recomienda permutation, pero siento que con este tema se esta inventando tela de cosas.
+)
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs OLD", "cramer_test_ecdf"] <- cramer_test$p.value
+```
+
+- Adult vs Young
+
+```{r}
+x <- histograms_cumulative_wide %>% filter(Condition == "ADULT") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_cumulative_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+Resultados_pvalue[Resultados_pvalue$Comparacion=="ADULT vs YG", "cramer_test_ecdf"] <- cramer_test$p.value
+```
+
+
+- OLD vs Young
+
+```{r}
+x <- histograms_cumulative_wide %>% filter(Condition == "OLD") %>% select(-ID, -Condition) %>% as.matrix()
+y <- histograms_cumulative_wide %>% filter(Condition == "YG") %>% select(-ID, -Condition) %>% as.matrix()
+
+cramer_test <- cramer.test(x, y,  conf.level = 0.95,  replicates = 5000, sim = "permutation")
+
+Resultados_pvalue[Resultados_pvalue$Comparacion=="OLD vs YG", "cramer_test_ecdf"] <- cramer_test$p.value
+```
+No cambian los resultados al usar la ecdf
 
 ## 3.4 Permutation Multivariate ANOVA
 
@@ -807,19 +908,22 @@ En este caso sigue indicando que la condición es significativa, cuando hasta ah
 
 # Conclusión
 
-Observando con detalle los histogramas, vemos que ADULT difiere de los otros dos que son más similares entre sí, pero además la dispersión de OLD es algo menor que la de YOUNG en algunos tramos. Represento ahora 2 desviaciones estandar para observar bien cuanta superposición hay con los datos
+Observando con detalle los histogramas, vemos que ADULT difiere de los otros dos que son más similares entre sí, pero además la dispersión de OLD es algo menor que la de YOUNG en algunos tramos. La representación con 2 desviaciones estandar no es la adecuada pues maximiza mucho el intervalo, mejor usar la min-max para observar bien cuanta superposición de los datos.
 
-```{r fig.height=7, fig.width=7}
+```{r fig.height=9, fig.width=10}
 # Plot densidades medias por condicion
-p <- ggplot(histograms_agg, aes(x = bin, y = density_mean, color = Condition, fill = Condition)) +
-  geom_ribbon(aes(ymin = density_mean - 2*density_sd, ymax = density_mean + 2*density_sd), alpha = 0.2, color = NA) +
-  geom_line(linewidth = 0.8, alpha = 0.8) +
+p <- ggplot(histograms_agg, aes(x = bin, color = Condition, fill = Condition)) +
+  geom_line(data = histograms, aes(y = density, group = interaction(ID, Condition)),
+            alpha = 0.4, linewidth = 0.15) +
+  geom_ribbon(aes(ymin = density_min, ymax = density_max), alpha = 0.05, color = NA) +
+  # geom_ribbon(aes(ymin = density_mean - density_sd, ymax = density_mean + density_sd), alpha = 0.2, color = NA) + # para pintar la sd
+  geom_line(aes(y = density_mean), linewidth = 1, alpha = 0.7) +
   scale_color_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   scale_fill_manual(values = c("ADULT" = "#E41A1C", "OLD" = "blue", "YG" = "#4DAF4A")) +
   theme_minimal() +
   labs(
     x = "Bin",
-    y = "Mean Density (± SD)",
+    y = "Mean Density (± min-max limits)",
     title = "Average Bin Counts by Condition",
     color = "Condition", fill = "Condition"
   )
@@ -843,4 +947,4 @@ tbl_grob <- tableGrob(Resultados_pvalue, rows = NULL,
 p / wrap_elements(tbl_grob) + plot_layout(heights = c(1.5, 1))
 ```
 
-Pintaría los histogramas con las lineas del mismo modo que está pintada la gráfica de los quantiles, poniendo la sombra ribbon entre el valor min y max (añadir min-max al calculo de las agregaciones)
+En esta gráfica se resume de manera apropiada una representación adecuada (se pueden quitar las lineas finas o cambiar el min-max por la sd) junto con una tabla que sumariza los resutados de los test.
