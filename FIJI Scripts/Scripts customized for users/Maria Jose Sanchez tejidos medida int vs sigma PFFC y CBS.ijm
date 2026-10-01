@@ -13,7 +13,7 @@ close("\\Others");
 //run("Clear Results");
 roiManager("deselect");
 run("Select None");
-valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000);
+valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
 imagen_original = getImageID();
 title = getTitle();
 title = replace(title, "\\ ", "");
@@ -32,7 +32,7 @@ close("*sigma*");
 for (i = 0; i < valores.length; i++) {
 	selectImage(imagen_original);
 	// run("Duplicate...", "title="+title+"_SUMraw_sigma="+valores[i]+"_roi"); // No necesita duplicado ya que el plugin genera una imagen nueva
-	run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[i]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1");
+	run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[i]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); // permite 32bits
 	rename(title+"_PFFC_SUMraw_sigma="+valores[i]+"_roi");
 	selectImage(title+"_PFFC_SUMraw_sigma="+valores[i]+"_roi");
 	roiManager("Measure");
