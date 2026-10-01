@@ -13,7 +13,7 @@ close("\\Others");
 //run("Clear Results");
 roiManager("deselect");
 run("Select None");
-valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2400, 2750, 3000);
+valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000);
 imagen_original = getImageID();
 title = getTitle();
 title = replace(title, "\\ ", "");
@@ -21,11 +21,11 @@ title = replace(title, "\\-", "_");
 rename("original");
 run("Set Measurements...", "area mean modal integrated median skewness kurtosis display redirect=None decimal=3");
 
-/*
+
 // PFFC sin conversion - resulta de la suma de las intensidaddes en la proyección. 
 // Creo que esta medida es altamente susceptible al grosor de la muestra
-// 0 = sin correccion
 selectImage(imagen_original);
+// 0 = sin correccion
 run("Duplicate...", "title="+title+"_PFFC_SUMraw_sigma=0_roi");
 roiManager("Measure");
 close("*sigma*");
@@ -46,13 +46,13 @@ run("Clear Results");
 
 // PFFC con conversion 16bits sistematica 
 // Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.35
-// 0 = sin correccion
 selectImage(imagen_original);
 run("Duplicate...", "title=PFFC_SUM16bits");
 run("Enhance Contrast...", "saturated=0.35 normalize");
 setOption("ScaleConversions", true);
 run("16-bit");
 PFFC_SUM16 = getImageID();
+// 0 = sin correccion
 run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma=0_roi");
 roiManager("Measure");
 close("*sigma*");
@@ -68,13 +68,13 @@ close("PFFC_SUM16bits");
 selectWindow("Results");
 saveAs("Results", dir+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
-*/
 
-/*
+
+/*
 // Convoluted Bckg substraction SIN conversión. Imagen de 32 bits
 // Creo que esta medida es también altamente susceptible al grosor de la muestra
-// 0 = sin correccion
 selectImage(imagen_original);
+// 0 = sin correccion
 run("Duplicate...", "title="+title+"_CBS_SUMraw_sigma=0_roi");
 roiManager("Measure");
 close("*sigma*");
@@ -96,13 +96,13 @@ run("Clear Results");
 
 // Convoluted Bckg substraction con conversion 16bits sistematica 
 // Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.35
-// 0 = sin correccion
 selectImage(imagen_original);
 run("Duplicate...", "title=CBS_SUM16bits");
 run("Enhance Contrast...", "saturated=0.35 normalize");
 setOption("ScaleConversions", true);
 run("16-bit");
 CBS_SUM16 = getImageID();
+// 0 = sin correccion
 run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma=0_roi");
 roiManager("Measure");
 close("*sigma*");
