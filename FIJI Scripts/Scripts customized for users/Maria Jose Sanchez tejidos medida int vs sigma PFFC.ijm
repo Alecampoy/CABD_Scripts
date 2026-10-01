@@ -70,7 +70,7 @@ saveAs("Results", dir+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
 
 
-/*
+/* queda pendiente de añadir esta parte si se corrige el problema de que aparece un mensaje cuando se llama desde el macro
 // Convoluted Bckg substraction SIN conversión. Imagen de 32 bits
 // Creo que esta medida es también altamente susceptible al grosor de la muestra
 selectImage(imagen_original);
