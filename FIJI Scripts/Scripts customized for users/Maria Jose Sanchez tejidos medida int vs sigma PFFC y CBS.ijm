@@ -40,7 +40,7 @@ for (i = 0; i < valores.length; i++) {
 }
 
 selectWindow("Results");
-saveAs("Results", dir+"PFFC_SUMraw_Results.csv");
+saveAs("Results", dir+title+"PFFC_SUMraw_Results.csv");
 run("Clear Results");
 
 
@@ -66,7 +66,7 @@ for (i = 0; i < valores.length; i++) {
 close("PFFC_SUM16bits");
 
 selectWindow("Results");
-saveAs("Results", dir+"PFFC_SUM16bits_Results.csv");
+saveAs("Results", dir+title+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
 
 
@@ -90,7 +90,7 @@ for (i = 0; i < valores.length; i++) {
 }
 
 selectWindow("Results");
-saveAs("Results", dir+"CBS_SUMraw_Results.csv");
+saveAs("Results", dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
 */
 
@@ -112,12 +112,13 @@ close("*sigma*");
 
 
 selectWindow("Results");
-saveAs("Results", dir+"CBS_SUMraw_Results.csv");
+saveAs("Results", dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
 
 
 // Convoluted Bckg substraction con conversion 16bits sistematica 
 // Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.35
+valores = newArray(8, 25, 50, 75, 100, 200, 400, 750, 1000);
 selectImage(imagen_original);
 run("Duplicate...", "title=CBS_SUM16bits");
 run("Enhance Contrast...", "saturated=0.25 normalize");
@@ -138,7 +139,7 @@ for (i = 0; i < valores.length; i++) {
 close("CBS_SUM16bits");
 
 selectWindow("Results");
-saveAs("Results", dir+"CBS_SUM16bits_Results.csv");
+saveAs("Results", dir+title+"CBS_SUM16bits_Results.csv");
 run("Clear Results");
 
 
