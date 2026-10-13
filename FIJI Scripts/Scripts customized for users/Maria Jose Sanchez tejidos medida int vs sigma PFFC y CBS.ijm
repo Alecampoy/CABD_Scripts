@@ -1,8 +1,6 @@
-// Mide Intensidad en ROIs de tegidos usando corrección pseudo flat field correction aplicando diferentes sigma
+// Mide Intensidad en ROIs de tegidos usando corrección pseudo flat field y Convoluted Bacground Substraction aplicando diferentes sigma
 // 
 // Usuarios: Alejandra Navarro, lab Maria Jose Sanchez 
-//
-// UNICAMENTE Hay que tener abierta la imagen del unico canal ChIBA1 y los ROI deseados y nombrados en el ROI manager
 
 
 run("Close All");
@@ -12,58 +10,166 @@ roiManager("reset");
 run("Options...", "black");
 run("Input/Output...", "file=.tsv copy_column copy_row save_column save_row");
 
-
-run("Select None");
-
-dir = getDirectory("directorio donde estan las imagenes");
+dir = getDirectory("directorio donde estan las imagenes y los ROI");
 saving_dir = getDirectory("directorio para guardar los resultados");
-
-
 filelist = getFileList(dir); // lista con las imagenes dentro de cada carpeta
+
+// valores de medida
+valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
+valores_cbs = newArray(8, 25, 50, 90, 150, 300, 450);
+run("Set Measurements...", "area mean modal centroid integrated median skewness kurtosis stack display redirect=None decimal=3");
+
+//__________________________________________
+
+//
+// 1- PFFC sobre el plano de enfoque
+//
 for (i = 0; i < lengthOf(filelist); i++) {
 	run("Collect Garbage");
     if (endsWith(filelist[i], ".tif")) { 
         open(dir + File.separator + filelist[i]);
-        
-        
-        
-    } 
+        imagen_original = getImageID();
+		title = getTitle();
+		run("Select None");
+		// carga ROIs
+		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
+		roiManager("Open", roi_zip);
+		roiManager("deselect");
+		// Bucle para sigma
+		selectImage(imagen_original);
+		run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma=0_roi"); // 0 = sin correccion
+		roiManager("Measure");
+		close("*sigma*");
+		for (j = 0; j < valores_pffc.length; j++) {
+			selectImage(imagen_original);
+			run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma="+valores[j]+"_roi"); 
+			run("Pseudo flat field correction", "blurring="+valores[j]+" hide");
+			roiManager("Measure");
+			close("*sigma*");
+		}
+    }
 }
+selectWindow("Results");
+saveAs("Results", saving_dir+title+"PFFC_planoenfoq_Results.csv");
+run("Clear Results");
 
+//__________________________________________
 
+//
+// 2 - CBS sobre el plano de enfoque
+//
+for (i = 0; i < lengthOf(filelist); i++) {
+	run("Collect Garbage");
+    if (endsWith(filelist[i], ".tif")) { 
+        open(dir + File.separator + filelist[i]);
+        imagen_original = getImageID();
+		title = getTitle();
+		run("Select None");
+		// carga ROIs
+		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
+		roiManager("Open", roi_zip);
+		roiManager("deselect");
+		// Bucle para sigma
+		selectImage(imagen_original);
+		run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma=0_roi"); // 0 = sin correccion
+		roiManager("Measure");
+		close("*sigma*");
+		for (j = 0; j < valores_pffc.length; m++) {
+			selectImage(imagen_original);
+			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores[j]+"_roi"); 
+			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores[j]);
+			roiManager("Measure");
+			close("*sigma*");
+		}
+    }
+}
+selectWindow("Results");
+saveAs("Results", saving_dir+title+"CBS_planoenfoq_Results.csv");
+run("Clear Results");
 
-//run("Clear Results");
+//__________________________________________
 
-run("Select None");
-valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
-imagen_original = getImageID();
-title = getTitle();
-title = replace(title, "\\ ", "");
-title = replace(title, "\\-", "_");
-rename("original");
-run("Set Measurements...", "area mean modal integrated median skewness kurtosis display resaving_direct=None decimal=3");
-
-
-// PFFC sin conversion - resulta de la suma de las intensidaddes en la proyección. 
+//
+// 3 - PFFC sobre la proyección Suma en 32 bits
 // Creo que esta medida es altamente susceptible al grosor de la muestra
-selectImage(imagen_original);
-// 0 = sin correccion
-run("Duplicate...", "title="+title+"_PFFC_SUMraw_sigma=0_roi");
-roiManager("Measure");
-close("*sigma*");
-for (i = 0; i < valores.length; i++) {
-	selectImage(imagen_original);
-	// run("Duplicate...", "title="+title+"_SUMraw_sigma="+valores[i]+"_roi"); // No necesita duplicado ya que el plugin genera una imagen nueva
-	run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[i]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); // permite 32bits
-	rename(title+"_PFFC_SUMraw_sigma="+valores[i]+"_roi");
-	selectImage(title+"_PFFC_SUMraw_sigma="+valores[i]+"_roi");
-	roiManager("Measure");
-	close("*sigma*");
-}
+//
 
+for (i = 0; i < lengthOf(filelist); i++) {
+	run("Collect Garbage");
+    if (endsWith(filelist[i], ".tif")) { 
+        open(dir + File.separator + filelist[i]);
+        imagen_original = getImageID();
+		title = getTitle();
+		run("Select None");
+		// Proyección Suma
+		run("Z Project...", "projection=[Sum Slices]");
+		imagen_sum = getImageID();
+		selectImage(imagen_original);
+		close();
+		// carga ROIs
+		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
+		roiManager("Open", roi_zip);
+		roiManager("deselect");
+		// Bucle para sigma
+		selectImage(imagen_sum);
+		run("Duplicate...", "title="+title+"_PFFC_SUMraw_sigma=0_roi"); // 0 = sin correccion
+		roiManager("Measure");
+		close("*sigma*");
+		for (j = 0; j < valores_pffc.length; j++) {
+			selectImage(imagen_sum);
+			// permite 32bits y no necesita duplicado
+			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
+			rename(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			selectImage(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			roiManager("Measure");
+			close("*sigma*");
+		}
+    }
+}
 selectWindow("Results");
 saveAs("Results", saving_dir+title+"PFFC_SUMraw_Results.csv");
 run("Clear Results");
+
+//__________________________________________
+
+//
+// 4 - PFFC sobre la proyección Suma convertida a 16 bits
+// Se busca renormalizar la proyeccion suma a 16 bits. No confio demasiado
+//
+
+SEGUIR AQUI
+for (i = 0; i < lengthOf(filelist); i++) {
+	run("Collect Garbage");
+    if (endsWith(filelist[i], ".tif")) { 
+        open(dir + File.separator + filelist[i]);
+        imagen_original = getImageID();
+		title = getTitle();
+		run("Select None");
+		// Proyección Suma
+		run("Z Project...", "projection=[Sum Slices]");
+		imagen_sum = getImageID();
+		selectImage(imagen_original);
+		close();
+		// carga ROIs
+		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
+		roiManager("Open", roi_zip);
+		roiManager("deselect");
+		// Bucle para sigma
+		selectImage(imagen_sum);
+		run("Duplicate...", "title="+title+"_PFFC_SUMraw_sigma=0_roi"); // 0 = sin correccion
+		roiManager("Measure");
+		close("*sigma*");
+		for (j = 0; j < valores_pffc.length; j++) {
+			selectImage(imagen_sum);
+			// permite 32bits y no necesita duplicado
+			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
+			rename(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			selectImage(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			roiManager("Measure");
+			close("*sigma*");
+		}
+    }
+}
 
 
 // PFFC con conversion 16bits sistematica 
@@ -168,7 +274,4 @@ run("Clear Results");
 
 
 close("*");
-
 waitForUser("macro terminado");
-
-

@@ -1,9 +1,7 @@
-// Mide metricas de la matriz GLCM en ROIs rectangulares de tegidos
+// Mide metricas de la matriz GLCM en ROIs rectangulares de tejidos
+// - Realiza EnhContrast
 // 
 // Usuarios: Alejandra Navarro, lab Maria Jose Sanchez 
-//
-// Abrir UNICAMENTE la imagen y los ROI RECTANGULARES que se quieran medir (tantos como quieras) que no contengan fondo negro.
-
 
 run("Close All");
 run("Clear Results");
@@ -12,12 +10,8 @@ roiManager("reset");
 run("Options...", "black");
 run("Input/Output...", "file=.tsv copy_column copy_row save_column save_row");
 
-
-run("Select None");
-
 dir = getDirectory("directorio donde estan las imagenes y los ROI");
 saving_dir = getDirectory("directorio para guardar los resultados");
-
 
 // Cabecera medida
 print("imagen,","ROI,","Correlation size,","Angular Second Moment,","Contrast,","Correlation,","Inverse Difference Moment,","Entropy");
