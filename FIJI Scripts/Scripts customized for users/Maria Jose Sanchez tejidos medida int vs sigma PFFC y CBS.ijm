@@ -4,14 +4,36 @@
 //
 // UNICAMENTE Hay que tener abierta la imagen del unico canal ChIBA1 y los ROI deseados y nombrados en el ROI manager
 
-run("Select None");
+
+run("Close All");
 run("Clear Results");
-roiManager("deselect");
-waitForUser("Comprueba que estan los ROI bien en el ROI manager y la unica imagen es adecuada.");
-dir = getDirectory("Directorio para guardar los resultados");
-close("\\Others");
+print("\\Clear");
+roiManager("reset");
+run("Options...", "black");
+run("Input/Output...", "file=.tsv copy_column copy_row save_column save_row");
+
+
+run("Select None");
+
+dir = getDirectory("directorio donde estan las imagenes");
+saving_dir = getDirectory("directorio para guardar los resultados");
+
+
+filelist = getFileList(dir); // lista con las imagenes dentro de cada carpeta
+for (i = 0; i < lengthOf(filelist); i++) {
+	run("Collect Garbage");
+    if (endsWith(filelist[i], ".tif")) { 
+        open(dir + File.separator + filelist[i]);
+        
+        
+        
+    } 
+}
+
+
+
 //run("Clear Results");
-roiManager("deselect");
+
 run("Select None");
 valores = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
 imagen_original = getImageID();
@@ -19,7 +41,7 @@ title = getTitle();
 title = replace(title, "\\ ", "");
 title = replace(title, "\\-", "_");
 rename("original");
-run("Set Measurements...", "area mean modal integrated median skewness kurtosis display redirect=None decimal=3");
+run("Set Measurements...", "area mean modal integrated median skewness kurtosis display resaving_direct=None decimal=3");
 
 
 // PFFC sin conversion - resulta de la suma de las intensidaddes en la proyección. 
@@ -40,7 +62,7 @@ for (i = 0; i < valores.length; i++) {
 }
 
 selectWindow("Results");
-saveAs("Results", dir+title+"PFFC_SUMraw_Results.csv");
+saveAs("Results", saving_dir+title+"PFFC_SUMraw_Results.csv");
 run("Clear Results");
 
 
@@ -66,11 +88,11 @@ for (i = 0; i < valores.length; i++) {
 close("PFFC_SUM16bits");
 
 selectWindow("Results");
-saveAs("Results", dir+title+"PFFC_SUM16bits_Results.csv");
+saveAs("Results", saving_dir+title+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
 
 
-/* queda pendiente de añadir esta parte si se corrige el problema de que aparece un mensaje cuando se llama desde el macro
+/* queda pendiente de añasaving_dir esta parte si se corrige el problema de que aparece un mensaje cuando se llama desde el macro
 // Convoluted Bckg substraction SIN conversión. Imagen de 32 bits
 // Creo que esta medida es también altamente susceptible al grosor de la muestra
 selectImage(imagen_original);
@@ -90,7 +112,7 @@ for (i = 0; i < valores.length; i++) {
 }
 
 selectWindow("Results");
-saveAs("Results", dir+title+"CBS_SUMraw_Results.csv");
+saveAs("Results", saving_dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
 */
 
@@ -112,7 +134,7 @@ close("*sigma*");
 
 
 selectWindow("Results");
-saveAs("Results", dir+title+"CBS_SUMraw_Results.csv");
+saveAs("Results", saving_dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
 
 
@@ -139,7 +161,7 @@ for (i = 0; i < valores.length; i++) {
 close("CBS_SUM16bits");
 
 selectWindow("Results");
-saveAs("Results", dir+title+"CBS_SUM16bits_Results.csv");
+saveAs("Results", saving_dir+title+"CBS_SUM16bits_Results.csv");
 run("Clear Results");
 
 
