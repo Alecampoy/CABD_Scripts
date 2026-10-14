@@ -15,9 +15,9 @@ saving_dir = getDirectory("directorio para guardar los resultados");
 filelist = getFileList(dir); // lista con las imagenes dentro de cada carpeta
 
 // valores de medida
-valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000);
+valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1700, 2200);
 valores_cbs = newArray(8, 25, 50, 100, 250, 400);
-run("Set Measurements...", "area mean modal centroid integrated median skewness kurtosis stack display redirect=None decimal=3");
+run("Set Measurements...", "area mean modal min centroid integrated median skewness kurtosis stack display redirect=None decimal=3");
 
 //__________________________________________
 
@@ -30,6 +30,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// carga ROIs
 		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
@@ -69,6 +70,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// carga ROIs
 		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
@@ -109,6 +111,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// Proyección Suma
 		run("Z Project...", "projection=[Sum Slices]");
@@ -156,6 +159,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// Proyección Suma
 		run("Z Project...", "projection=[Sum Slices]");
@@ -203,6 +207,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// Proyección Suma
 		run("Z Project...", "projection=[Sum Slices]");
