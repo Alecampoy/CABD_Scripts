@@ -16,7 +16,7 @@ filelist = getFileList(dir); // lista con las imagenes dentro de cada carpeta
 
 // valores de medida
 valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
-valores_cbs = newArray(8, 25, 50, 90, 150, 300, 450);
+valores_cbs = newArray(8, 25, 50, 100, 250, 400);
 run("Set Measurements...", "area mean modal centroid integrated median skewness kurtosis stack display redirect=None decimal=3");
 
 //__________________________________________
@@ -127,7 +127,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_sum);
 			// permite 32bits y no necesita duplicado
-			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores_pffc[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
+			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores_pffc[j]+" force2dfilter=true activechannelonly=false showbackgroundimage=false stackslice=1"); 
 			rename(title+"_PFFC_SUMraw_sigma="+valores_pffc[j]+"_roi");
 			selectImage(title+"_PFFC_SUMraw_sigma="+valores_pffc[j]+"_roi");
 			roiManager("Measure");
