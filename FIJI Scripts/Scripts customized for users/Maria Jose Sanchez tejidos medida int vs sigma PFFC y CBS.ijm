@@ -15,7 +15,7 @@ saving_dir = getDirectory("directorio para guardar los resultados");
 filelist = getFileList(dir); // lista con las imagenes dentro de cada carpeta
 
 // valores de medida
-valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500);
+valores_pffc = newArray(8, 25, 50, 90, 150, 300, 500, 750, 1000, 1250, 1500, 1750, 2000);
 valores_cbs = newArray(8, 25, 50, 100, 250, 400);
 run("Set Measurements...", "area mean modal centroid integrated median skewness kurtosis stack display redirect=None decimal=3");
 
@@ -37,13 +37,13 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		roiManager("deselect");
 		// Bucle para sigma
 		selectImage(imagen_original);
-		run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma=0_roi"); // 0 = sin correccion
+		run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma=0_roi duplicate"); // 0 = sin correccion
 		roiManager("Measure");
 		close("*sigma*");
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_original);
-			run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma="+valores_pffc[j]+"_roi"); 
-			run("Pseudo flat field correction", "blurring="+valores_pffc[j]+" hide");
+			run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma="+valores_pffc[j]+"_roi duplicate"); 
+			run("Pseudo flat field correction", "blurring="+valores_pffc[j]+" hide stack");
 			roiManager("Measure");
 			close("*sigma*");
 		}
@@ -76,13 +76,13 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		roiManager("deselect");
 		// Bucle para sigma
 		selectImage(imagen_original);
-		run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma=0_roi"); // 0 = sin correccion
+		run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma=0_roi duplicate"); // 0 = sin correccion
 		roiManager("Measure");
 		close("*sigma*");
 		for (j = 0; j < valores_cbs.length; m++) {
 			selectImage(imagen_original);
-			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores_cbs[j]+"_roi"); 
-			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[j]);
+			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores_cbs[j]+"_roi duplicate"); 
+			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[j]+" stack");
 			roiManager("Measure");
 			close("*sigma*");
 		}
