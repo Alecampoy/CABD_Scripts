@@ -26,7 +26,7 @@ run("Set Measurements...", "area mean modal centroid integrated median skewness 
 //
 for (i = 0; i < lengthOf(filelist); i++) {
 	run("Collect Garbage");
-    if (endsWith(filelist[i], ".tif")) { 
+    if (endsWith(filelist[i], ".tif")) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
@@ -42,16 +42,21 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		close("*sigma*");
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_original);
-			run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma="+valores[j]+"_roi"); 
-			run("Pseudo flat field correction", "blurring="+valores[j]+" hide");
+			run("Duplicate...", "title="+title+"_PFFC_planoenfoq_sigma="+valores_pffc[j]+"_roi"); 
+			run("Pseudo flat field correction", "blurring="+valores_pffc[j]+" hide");
 			roiManager("Measure");
 			close("*sigma*");
 		}
+		// fin imagen
+    	roiManager("reset");
+    	selectImage(imagen_original);
+		close();
     }
 }
 selectWindow("Results");
 saveAs("Results", saving_dir+title+"PFFC_planoenfoq_Results.csv");
 run("Clear Results");
+
 
 //__________________________________________
 
@@ -60,7 +65,7 @@ run("Clear Results");
 //
 for (i = 0; i < lengthOf(filelist); i++) {
 	run("Collect Garbage");
-    if (endsWith(filelist[i], ".tif")) { 
+    if (endsWith(filelist[i], ".tif")) {
         open(dir + File.separator + filelist[i]);
         imagen_original = getImageID();
 		title = getTitle();
@@ -74,13 +79,17 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma=0_roi"); // 0 = sin correccion
 		roiManager("Measure");
 		close("*sigma*");
-		for (j = 0; j < valores_pffc.length; m++) {
+		for (j = 0; j < valores_cbs.length; m++) {
 			selectImage(imagen_original);
-			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores[j]+"_roi"); 
-			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores[j]);
+			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores_cbs[j]+"_roi"); 
+			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[j]);
 			roiManager("Measure");
 			close("*sigma*");
 		}
+		// fin imagen
+    	roiManager("reset");
+    	selectImage(imagen_original);
+		close();
     }
 }
 selectWindow("Results");
@@ -118,12 +127,16 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_sum);
 			// permite 32bits y no necesita duplicado
-			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
-			rename(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
-			selectImage(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores_pffc[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
+			rename(title+"_PFFC_SUMraw_sigma="+valores_pffc[j]+"_roi");
+			selectImage(title+"_PFFC_SUMraw_sigma="+valores_pffc[j]+"_roi");
 			roiManager("Measure");
 			close("*sigma*");
 		}
+		// fin imagen
+    	roiManager("reset");
+    	selectImage(imagen_sum);
+		close();
     }
 }
 selectWindow("Results");
@@ -135,9 +148,8 @@ run("Clear Results");
 //
 // 4 - PFFC sobre la proyección Suma convertida a 16 bits
 // Se busca renormalizar la proyeccion suma a 16 bits. No confio demasiado
+// Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.35
 //
-
-SEGUIR AQUI
 for (i = 0; i < lengthOf(filelist); i++) {
 	run("Collect Garbage");
     if (endsWith(filelist[i], ".tif")) { 
@@ -147,6 +159,10 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		run("Select None");
 		// Proyección Suma
 		run("Z Project...", "projection=[Sum Slices]");
+		// Normalizacion pre conversion a 16bits
+		run("Enhance Contrast...", "saturated=0.25 normalize");
+		setOption("ScaleConversions", true);
+		run("16-bit");
 		imagen_sum = getImageID();
 		selectImage(imagen_original);
 		close();
@@ -156,46 +172,76 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		roiManager("deselect");
 		// Bucle para sigma
 		selectImage(imagen_sum);
-		run("Duplicate...", "title="+title+"_PFFC_SUMraw_sigma=0_roi"); // 0 = sin correccion
+		run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma=0_roi"); // 0 = sin correccion
 		roiManager("Measure");
 		close("*sigma*");
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_sum);
-			// permite 32bits y no necesita duplicado
-			run("Pseudo Flat Field Correction (2D/3D)", "flatfieldradius="+valores[j]+" force2dfilter=false activechannelonly=false showbackgroundimage=false stackslice=1"); 
-			rename(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
-			selectImage(title+"_PFFC_SUMraw_sigma="+valores[j]+"_roi");
+			run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma="+valores_pffc[j]+"_roi");
+			run("Pseudo flat field correction", "blurring="+valores_pffc[i]+" hide");
 			roiManager("Measure");
 			close("*sigma*");
 		}
+		// fin imagen
+    	roiManager("reset");
+    	selectImage(imagen_sum);
+		close();
     }
 }
-
-
-// PFFC con conversion 16bits sistematica 
-// Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.25
-selectImage(imagen_original);
-run("Duplicate...", "title=PFFC_SUM16bits");
-run("Enhance Contrast...", "saturated=0.25 normalize");
-setOption("ScaleConversions", true);
-run("16-bit");
-PFFC_SUM16 = getImageID();
-// 0 = sin correccion
-run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma=0_roi");
-roiManager("Measure");
-close("*sigma*");
-for (i = 0; i < valores.length; i++) {
-	selectImage(PFFC_SUM16);
-	run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma="+valores[i]+"_roi");
-	run("Pseudo flat field correction", "blurring="+valores[i]+" hide");
-	roiManager("Measure");
-	close("*sigma*");
-}
-close("PFFC_SUM16bits");
-
 selectWindow("Results");
 saveAs("Results", saving_dir+title+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
+
+//__________________________________________
+
+//
+// 5 - CBS sobre la proyección Suma normalizada y convertida a 16 bits
+//
+for (i = 0; i < lengthOf(filelist); i++) {
+	run("Collect Garbage");
+    if (endsWith(filelist[i], ".tif")) { 
+        open(dir + File.separator + filelist[i]);
+        imagen_original = getImageID();
+		title = getTitle();
+		run("Select None");
+		// Proyección Suma
+		run("Z Project...", "projection=[Sum Slices]");
+		// Normalizacion pre conversion a 16bits
+		run("Enhance Contrast...", "saturated=0.25 normalize");
+		setOption("ScaleConversions", true);
+		run("16-bit");
+		imagen_sum = getImageID();
+		selectImage(imagen_original);
+		close();
+		// carga ROIs
+		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
+		roiManager("Open", roi_zip);
+		roiManager("deselect");
+		// Bucle para sigma
+		selectImage(imagen_sum);
+		run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma=0_roi"); // 0 = sin correccion
+		roiManager("Measure");
+		close("*sigma*");
+		for (j = 0; j < valores_cbs.length; j++) {
+			selectImage(imagen_sum);
+			run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma="+valores_cbs[j]+"_roi");
+			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[i]);
+			roiManager("Measure");
+			close("*sigma*");
+		}
+		// fin imagen
+    	roiManager("reset");
+    	selectImage(imagen_sum);
+		close();
+    }
+}
+selectWindow("Results");
+saveAs("Results", saving_dir+title+"CBS_SUM16bits_Results.csv");
+run("Clear Results");
+
+//__________________________________________
+
+print("macro terminado");
 
 
 /* queda pendiente de añasaving_dir esta parte si se corrige el problema de que aparece un mensaje cuando se llama desde el macro
@@ -220,58 +266,4 @@ for (i = 0; i < valores.length; i++) {
 selectWindow("Results");
 saveAs("Results", saving_dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
-*/
-
-
-
-// Convoluted Bckg substraction SIN conversión. Imagen de 32 bits // Para un valor fijo de sigma
-// Creo que esta medida es también altamente susceptible al grosor de la muestra
-selectImage(imagen_original);
-// 0 = sin correccion
-run("Duplicate...", "title="+title+"_CBS_SUMraw_sigma=0_roi");
-roiManager("Measure");
-close("*sigma*");
-selectImage(imagen_original);
-run("Convoluted Background Subtraction (2D/3D)", "filtermethod=Gaussian filterradius=200 force2dfiltering=false stackslice=1 processonthefly=false");
-rename(title+"_CBS_SUMraw_sigma=200_roi");
-selectImage(title+"_CBS_SUMraw_sigma=200_roi");
-roiManager("Measure");
-close("*sigma*");
-
-
-selectWindow("Results");
-saveAs("Results", saving_dir+title+"CBS_SUMraw_Results.csv");
-run("Clear Results");
-
-
-// Convoluted Bckg substraction con conversion 16bits sistematica 
-// Para ello uso enhance contrast y normalize 0-1 antes de realizar la conversión, para tenerla controlada por el número de pixeles saturados a 0.35
-valores = newArray(8, 25, 50, 75, 100, 200, 400, 750, 1000);
-selectImage(imagen_original);
-run("Duplicate...", "title=CBS_SUM16bits");
-run("Enhance Contrast...", "saturated=0.25 normalize");
-setOption("ScaleConversions", true);
-run("16-bit");
-CBS_SUM16 = getImageID();
-// 0 = sin correccion
-run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma=0_roi");
-roiManager("Measure");
-close("*sigma*");
-for (i = 0; i < valores.length; i++) {
-	selectImage(CBS_SUM16);
-	run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma="+valores[i]+"_roi");
-	run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores[i]);
-	roiManager("Measure");
-	close("*sigma*");
-}
-close("CBS_SUM16bits");
-
-selectWindow("Results");
-saveAs("Results", saving_dir+title+"CBS_SUM16bits_Results.csv");
-run("Clear Results");
-
-
-
-
-close("*");
-waitForUser("macro terminado");
+*/
