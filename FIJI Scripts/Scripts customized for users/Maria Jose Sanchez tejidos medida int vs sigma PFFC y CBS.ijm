@@ -81,7 +81,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma=0_roi duplicate"); // 0 = sin correccion
 		roiManager("Measure");
 		close("*sigma*");
-		for (j = 0; j < valores_cbs.length; m++) {
+		for (j = 0; j < valores_cbs.length; j++) {
 			selectImage(imagen_original);
 			run("Duplicate...", "title="+title+"_CBS_planoenfoq_sigma="+valores_cbs[j]+"_roi duplicate"); 
 			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[j]+" stack");
@@ -182,7 +182,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		for (j = 0; j < valores_pffc.length; j++) {
 			selectImage(imagen_sum);
 			run("Duplicate...", "title="+title+"_PFFC_SUM16bits_sigma="+valores_pffc[j]+"_roi");
-			run("Pseudo flat field correction", "blurring="+valores_pffc[i]+" hide");
+			run("Pseudo flat field correction", "blurring="+valores_pffc[j]+" hide");
 			roiManager("Measure");
 			close("*sigma*");
 		}
@@ -230,7 +230,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 		for (j = 0; j < valores_cbs.length; j++) {
 			selectImage(imagen_sum);
 			run("Duplicate...", "title="+title+"_CBS_SUM16bits_sigma="+valores_cbs[j]+"_roi");
-			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[i]);
+			run("Convoluted Background Subtraction", "convolution=Gaussian radius="+valores_cbs[j]);
 			roiManager("Measure");
 			close("*sigma*");
 		}
