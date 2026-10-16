@@ -1,4 +1,4 @@
-// Mide Intensidad en ROIs de tegidos usando corrección pseudo flat field y Convoluted Bacground Substraction aplicando diferentes sigma
+// Mide Intensidad en ROIs de tegidos usando corrección pseudo flat field y Convoluted Bacground Substraction aplicando diferentes sigma.
 // 
 // Usuarios: Alejandra Navarro, lab Maria Jose Sanchez 
 
@@ -55,7 +55,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
     }
 }
 selectWindow("Results");
-saveAs("Results", saving_dir+title+"PFFC_planoenfoq_Results.csv");
+saveAs("Results", saving_dir+"PFFC_planoenfoq_Results.csv");
 run("Clear Results");
 
 
@@ -88,14 +88,14 @@ for (i = 0; i < lengthOf(filelist); i++) {
 			roiManager("Measure");
 			close("*sigma*");
 		}
-		// fin imagen
+		// fin imagen
     	roiManager("reset");
     	selectImage(imagen_original);
 		close();
     }
 }
 selectWindow("Results");
-saveAs("Results", saving_dir+title+"CBS_planoenfoq_Results.csv");
+saveAs("Results", saving_dir+"CBS_planoenfoq_Results.csv");
 run("Clear Results");
 
 //__________________________________________
@@ -143,7 +143,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
     }
 }
 selectWindow("Results");
-saveAs("Results", saving_dir+title+"PFFC_SUMraw_Results.csv");
+saveAs("Results", saving_dir+"PFFC_SUMraw_Results.csv");
 run("Clear Results");
 
 //__________________________________________
@@ -193,7 +193,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
     }
 }
 selectWindow("Results");
-saveAs("Results", saving_dir+title+"PFFC_SUM16bits_Results.csv");
+saveAs("Results", saving_dir+"PFFC_SUM16bits_Results.csv");
 run("Clear Results");
 
 //__________________________________________
@@ -241,7 +241,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
     }
 }
 selectWindow("Results");
-saveAs("Results", saving_dir+title+"CBS_SUM16bits_Results.csv");
+saveAs("Results", saving_dir+"CBS_SUM16bits_Results.csv");
 run("Clear Results");
 
 //__________________________________________
@@ -271,4 +271,4 @@ for (i = 0; i < valores.length; i++) {
 selectWindow("Results");
 saveAs("Results", saving_dir+title+"CBS_SUMraw_Results.csv");
 run("Clear Results");
-*/
+*/
