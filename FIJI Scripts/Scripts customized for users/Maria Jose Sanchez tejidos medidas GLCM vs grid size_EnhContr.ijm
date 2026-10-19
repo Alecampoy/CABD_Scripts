@@ -24,6 +24,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
         open(dir + File.separator + filelist[i]);
         imagen = getImageID();
 		title = getTitle();
+		run("Remove Overlay");
 		run("Select None");
 		// carga ROIs
 		roi_zip = dir + File.separator + replace(filelist[i], ".tif", ".zip");
