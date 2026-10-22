@@ -40,6 +40,7 @@ for (i = 0; i < lengthOf(filelist); i++) {
 			roi_temp = getImageID();
 			// run("Enhance Contrast...", "saturated=0.5 normalize");
 			if (n==0) {saveAs("Tiff", saving_dir+title+"_ROI_"+roi_name+"_NOEnhCont.tif");}
+			if (n==1) {saveAs("Tiff", saving_dir+title+"_ROI_"+roi_name+"_NOEnhCont.tif");}
 			// medidas del ROI
 			for (j = 0; j < valores.length; j++) {
 				selectImage(roi_temp);
